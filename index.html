@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTS/O Sprint & Email Hub</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f0f0ed;color:#1a1a1a;padding:1rem;min-height:100vh}
+.container{max-width:1100px;margin:0 auto;background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 1px 6px rgba(0,0,0,.1)}
+h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
+.tabs{display:flex;gap:6px;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;padding-bottom:1rem;flex-wrap:wrap}
+.tab{font-size:13px;padding:6px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;transition:all .15s}
+.tab:hover{background:#f5f5f5}
+.tab.on{background:#1a3a6b;color:#fff;font-weight:500;border-color:#1a3a6b}
+.page{display:none}.page.on{display:block}
+
+/* ── DASHBOARD ── */
+.metric-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem}
+.metric-card{background:#f8f8f8;border-radius:10px;padding:12px 14px;text-align:center;border-top:3px solid #1a3a6b}
+.metric-card.warn{border-top-color:#e05c2a}
+.metric-card .mc-val{font-size:26px;font-weight:600;color:#1a3a6b;margin:4px 0}
+.metric-card.warn .mc-val{color:#e05c2a}
+.metric-card .mc-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em}
+.metric-card .mc-sub{font-size:11px;color:#aaa;margin-top:2px}
+.goals-box{background:#f0f4ff;border-radius:10px;padding:12px 16px;margin-bottom:1.5rem}
+.goals-box h3{font-size:12px;font-weight:600;color:#1a3a6b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.goals-list{display:flex;flex-direction:column;gap:4px}
+.goal-item{font-size:13px;color:#333;display:flex;align-items:flex-start;gap:8px}
+.goal-item::before{content:"•";color:#1a3a6b;font-weight:bold;flex-shrink:0;margin-top:1px}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+@media(max-width:700px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{background:#fff;border:1px solid #eee;border-radius:10px;padding:16px}
+.chart-card h3{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px}
+.goal-banner{border-radius:6px;padding:5px 10px;font-size:12px;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.goal-banner.target{background:#fff0f0;color:#c00}
+.stat-banner{border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.stat-banner.met{background:#e8f5e9;color:#1b5e20}
+.stat-banner.notmet{background:#fff3e0;color:#e65100}
+.pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;flex-shrink:0}
+.pill.met{background:#2e7d32;color:#fff}
+.pill.notmet{background:#e65100;color:#fff}
+.chart-wrap{position:relative;height:200px}
+
+/* ── DATA TABLE ── */
+.data-table-wrap{overflow-x:auto;margin-top:1rem}
+table.data-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
+table.data-tbl th{background:#1a3a6b;color:#fff;padding:7px 10px;text-align:center;white-space:nowrap;font-weight:500}
+table.data-tbl td{padding:6px 10px;border-bottom:1px solid #eee;text-align:center}
+table.data-tbl tr:nth-child(even) td{background:#f8f8f8}
+table.data-tbl tr.current td{background:#fff8e1;font-weight:500}
+
+/* ── SPRINT / EPIC / INVOICE / EMAIL (existing) ── */
+.card{background:#f8f8f8;border-radius:8px;padding:10px 14px;margin-bottom:6px}
+.lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.val{font-size:20px;font-weight:500}
+.grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:1rem}
+.sec{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 6px}
+.mono{background:#f8f8f8;border-radius:8px;padding:12px 14px;font-size:12px;font-family:'Courier New',monospace;white-space:pre-wrap;line-height:1.6;color:#1a1a1a}
+.draft{background:#f8f8f8;border-radius:8px;padding:14px 16px;font-size:13px;line-height:1.8;white-space:pre-wrap;color:#1a1a1a}
+.dz{border:1.5px dashed #ccc;border-radius:10px;padding:1rem;text-align:center;cursor:pointer;transition:background .15s}
+.dz:hover,.dz.drag{background:#f5f5f5}
+.dz.ok{border-style:solid;border-color:#2d7d46;background:#eaf6ee}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500}
+.ok-b{background:#eaf6ee;color:#1e6e3a}
+.warn-b{background:#fff8e1;color:#7a5c00}
+.info-b{background:#e3f0fd;color:#1254a0}
+.etable{width:100%;border-collapse:collapse;font-size:12px}
+.etable th{background:#f5f5f5;padding:6px 8px;text-align:left;border-bottom:1px solid #eee;font-weight:500}
+.etable td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:middle}
+.etable tr:last-child td{border-bottom:none}
+.pct-row{background:#f8f8f8;border-radius:8px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.btn{font-size:12px;padding:5px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;transition:background .15s}
+.btn:hover{background:#f5f5f5}
+.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:13px;padding:7px 20px}
+.btn-primary:hover{background:#333}
+.frow{display:grid;grid-template-columns:155px 1fr;gap:10px;align-items:start;margin-bottom:10px}
+.flbl{font-size:12px;font-weight:500;color:#555;padding-top:6px;line-height:1.3}
+textarea,input[type=text],input[type=number],select{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;width:100%;font-family:inherit}
+textarea{resize:vertical}
+input.autofilled{border-color:#2d7d46;background:#eaf6ee}
+.hint{font-size:11px;color:#888;margin-top:3px}
+.err{display:none;font-size:12px;color:#c00;margin-top:6px;padding:6px 10px;background:#fff0f0;border-radius:6px}
+.success-bar{display:none;font-size:12px;color:#1e6e3a;padding:8px 12px;background:#eaf6ee;border-radius:8px;margin-bottom:12px}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #ddd;border-top-color:#888;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+input[type=file]{display:none}
+.budget-box{background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:10px}
+.stab-row{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>CTS/O Sprint &amp; Email Hub</h1>
+<div class="tabs">
+  <button class="tab on"  onclick="navTo(0,this)">📊 Dashboard</button>
+  <button class="tab"     onclick="navTo(1,this)">Sprint report</button>
+  <button class="tab"     onclick="navTo(2,this)">Epic % complete</button>
+  <button class="tab"     onclick="navTo(3,this)">Invoice</button>
+  <button class="tab"     onclick="navTo(4,this)">Weekly email</button>
+</div>
+
+<!-- ══ DASHBOARD ══════════════════════════════════════════════════════════ -->
+<div class="page on" id="pg0">
+  <!-- Metric cards -->
+  <div class="metric-cards" id="dash-cards">
+    <div class="metric-card"><p class="mc-lbl">Sprint</p><p class="mc-val" id="dc-sprint">—</p></div>
+    <div class="metric-card"><p class="mc-lbl">SP Committed</p><p class="mc-val" id="dc-committed">—</p></div>
+    <div class="metric-card" id="dc-done-card"><p class="mc-lbl">SP Done</p><p class="mc-val" id="dc-done">—</p></div>
+    <div class="metric-card" id="dc-comp-card"><p class="mc-lbl">Completion Rate</p><p class="mc-val" id="dc-comp">—</p></div>
+    <div class="metric-card"><p class="mc-lbl">Goals Achieved</p><p class="mc-val" id="dc-goals">—</p></div>
+    <div class="metric-card"><p class="mc-lbl">Avg Velocity<p class="mc-sub">last 3 sprints</p></p><p class="mc-val" id="dc-avgvel">—</p></div>
+  </div>
+
+  <!-- Sprint goals -->
+  <div class="goals-box" id="dash-goals-box" style="display:none">
+    <h3>Sprint Goals</h3>
+    <div class="goals-list" id="dash-goals-list"></div>
+  </div>
+
+  <!-- Charts 2-col grid -->
+  <div class="charts-grid">
+
+    <!-- 1. Sprint Goal Completion Rate -->
+    <div class="chart-card">
+      <h3>Sprint Goal Completion Rate</h3>
+      <div class="goal-banner target">🎯 Goal: Achieve 80% Sprint Goal Completion</div>
+      <div class="stat-banner" id="gcr-stat"><span class="pill">—</span><span id="gcr-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-gcr"></canvas></div>
+    </div>
+
+    <!-- 2. Sprint Commitment Reliability -->
+    <div class="chart-card">
+      <h3>Sprint Commitment Reliability</h3>
+      <div class="goal-banner target">🎯 Goal: Achieve Sprint Commitment Reliability of 80% or higher</div>
+      <div class="stat-banner" id="scr-stat"><span class="pill">—</span><span id="scr-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-scr"></canvas></div>
+    </div>
+
+    <!-- 3. Median Cycle Time -->
+    <div class="chart-card">
+      <h3>Median Cycle Time</h3>
+      <div class="goal-banner target">🎯 Goal: Median cycle time/sprint of 6 days</div>
+      <div class="stat-banner" id="mct-stat"><span class="pill">—</span><span id="mct-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-mct"></canvas></div>
+    </div>
+
+    <!-- 4. Average Velocity -->
+    <div class="chart-card">
+      <h3>Average Velocity</h3>
+      <div class="goal-banner target">🎯 Goal: Stable or improving trend over time</div>
+      <div class="stat-banner" id="vel-stat"><span class="pill">—</span><span id="vel-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-vel"></canvas></div>
+    </div>
+
+    <!-- 5. Defect Rate -->
+    <div class="chart-card">
+      <h3>Code Quality vs. Value Add</h3>
+      <div class="goal-banner target">🎯 Goal: Stable or improving trend over time of 10% defect rate</div>
+      <div class="stat-banner" id="def-stat"><span class="pill">—</span><span id="def-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-def"></canvas></div>
+    </div>
+
+    <!-- 6. Median Lead Time -->
+    <div class="chart-card">
+      <h3>Median Lead Time</h3>
+      <div class="goal-banner target">🎯 Goal: Stable or improving trend over time of 30 days</div>
+      <div class="stat-banner" id="mlt-stat"><span class="pill">—</span><span id="mlt-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-mlt"></canvas></div>
+    </div>
+
+  </div><!-- /charts-grid -->
+
+</div>
+
+<!-- ══ SPRINT REPORT ══════════════════════════════════════════════════════ -->
+<div class="page" id="pg1">
+  <p style="font-size:12px;color:#666;margin-bottom:6px">Paste Jira sprint report text:</p>
+  <textarea id="paste" rows="7" placeholder="Paste sprint report here..."></textarea>
+  <button class="btn" style="margin-top:8px" onclick="runParse()">&#9654; Parse</button>
+  <div class="err" id="s-err"></div>
+  <div id="s-out" style="margin-top:1rem"></div>
+
+  <!-- Source data table -->
+  <hr style="border:none;border-top:1px solid #eee;margin:1.5rem 0">
+  <h3 style="font-size:13px;font-weight:600;margin-bottom:8px;color:#555;text-transform:uppercase;letter-spacing:.04em">Source Data — Sprint History</h3>
+  <div class="data-table-wrap">
+    <table class="data-tbl" id="source-table">
+      <thead><tr>
+        <th>Sprint</th><th>Release</th><th># Goals</th><th>Goals Achieved</th>
+        <th>% Achieved</th><th>Goal % Target</th><th>SP Committed</th>
+        <th>SP Done</th><th>% SP Complete</th><th>Cycle Time (days)</th>
+        <th>Lead Time (days)</th><th>Defects (pts)</th><th>Value (pts)</th>
+        <th>Defect Rate %</th>
+      </tr></thead>
+      <tbody id="source-tbody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn" onclick="showAddForm()">+ Add / edit sprint data</button>
+    <span style="font-size:11px;color:#888">Saved automatically in your browser</span>
+  </div>
+
+  <!-- Add/edit form -->
+  <div id="add-form" style="display:none;background:#f8f8f8;border-radius:10px;padding:16px;margin-top:1rem">
+    <h3 style="font-size:13px;font-weight:600;margin-bottom:12px">Add / Update Sprint Data</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><p class="lbl">Sprint #</p><input type="number" id="f-sprint" placeholder="27"></div>
+      <div><p class="lbl">Release</p><input type="text" id="f-release" placeholder="Release 1.4"></div>
+      <div><p class="lbl"># Sprint Goals</p><input type="number" id="f-goals"></div>
+      <div><p class="lbl">Goals Achieved</p><input type="number" id="f-goalsmet"></div>
+      <div><p class="lbl">SP Committed</p><input type="number" id="f-committed"></div>
+      <div><p class="lbl">SP Done</p><input type="number" id="f-done"></div>
+      <div><p class="lbl">Median Cycle Time (days)</p><input type="number" step="0.01" id="f-cycle"></div>
+      <div><p class="lbl">Median Lead Time (days)</p><input type="number" step="0.01" id="f-lead"></div>
+      <div><p class="lbl">Defects (points)</p><input type="number" id="f-defects"></div>
+      <div><p class="lbl">Value (points)</p><input type="number" id="f-value"></div>
+    </div>
+    <p class="hint" style="margin-top:8px">% Achieved, % SP Complete, and Defect Rate calculate automatically</p>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="btn-primary btn" onclick="saveSprint()">Save sprint</button>
+      <button class="btn" onclick="document.getElementById('add-form').style.display='none'">Cancel</button>
+    </div>
+    <div class="err" id="form-err"></div>
+  </div>
+</div>
+
+<!-- ══ EPIC % COMPLETE ════════════════════════════════════════════════════ -->
+<div class="page" id="pg2">
+  <div class="dz" id="dz-epic" onclick="document.getElementById('fi-e').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropEpic(event)">
+    <input type="file" id="fi-e" accept=".csv" onchange="loadEpicFile(this.files[0])">
+    <p style="font-size:14px;font-weight:500;margin-bottom:4px">&#8593; Upload epic CSV</p>
+    <p style="font-size:12px;color:#888">Jira export — Issue key, Summary, Status, Story Points</p>
+  </div>
+  <div class="err" id="e-err"></div>
+  <div id="e-out" style="margin-top:1rem"></div>
+</div>
+
+<!-- ══ INVOICE ════════════════════════════════════════════════════════════ -->
+<div class="page" id="pg3">
+  <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:1rem">
+    <p style="font-size:12px;font-weight:500;color:#555;margin-bottom:10px">Previous cost-to-date <span style="font-weight:400;color:#888">&mdash; saved automatically after each invoice</span></p>
+    <div class="frow"><span class="flbl">Legacy cost to date</span><div><input type="text" id="prev-leg" placeholder="e.g. $30,360" oninput="savePrevTotals()"><p class="hint">Running total before this invoice</p></div></div>
+    <div class="frow"><span class="flbl">Modernization cost to date</span><div><input type="text" id="prev-mod" placeholder="e.g. $613,920" oninput="savePrevTotals()"><p class="hint">Running total before this invoice</p></div></div>
+  </div>
+  <div class="dz" id="dz-inv" onclick="document.getElementById('fi-i').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropInv(event)">
+    <input type="file" id="fi-i" accept=".pdf" onchange="loadInvFile(this.files[0])">
+    <p style="font-size:14px;font-weight:500;margin-bottom:4px">&#8593; Upload invoice PDF</p>
+    <p style="font-size:12px;color:#888">ArchitectNow format &mdash; budget numbers auto-fill in the Email tab</p>
+  </div>
+  <div class="err" id="i-err"></div>
+  <div id="i-out" style="margin-top:1rem"></div>
+</div>
+
+<!-- ══ WEEKLY EMAIL ═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg4">
+  <div class="success-bar" id="inv-notice">&#10003; Invoice budget numbers auto-populated below &mdash; review before generating</div>
+  <div class="frow"><span class="flbl">Project status</span><select id="e-status" onchange="toggleStatusNote()"><option value="On Track">On Track</option><option value="At Risk">At Risk</option><option value="Off Track">Off Track</option></select></div>
+  <div id="status-note-row" style="display:none" class="frow"><span class="flbl">Why at risk / off track?</span><div><textarea id="e-status-note" rows="2" placeholder="Brief description — Claude writes the explanation and mitigation plan..."></textarea><p class="hint">e.g. "Sprint goals missed two sprints in a row due to scope creep on legacy bugs"</p></div></div>
+  <div class="frow"><span class="flbl">Intro line</span><input type="text" id="e-intro" value="Good afternoon! Below are this week's updates:"></div>
+  <div class="frow"><span class="flbl">Goal 1 &mdash; Consolidate &amp; Modernize</span><div><textarea id="e-g1" rows="3" placeholder="Features completed/in-progress, ticket themes..."></textarea></div></div>
+  <div class="frow"><span class="flbl">Goal 2 &mdash; End-User Experience</span><textarea id="e-g2" rows="2" placeholder="UAT status, UX improvements... Leave blank to omit."></textarea></div>
+  <div class="frow"><span class="flbl">Goal 3 &mdash; Operational Efficiency</span><textarea id="e-g3" rows="2" placeholder="Tooling, process improvements... Leave blank to omit."></textarea></div>
+  <div class="frow"><span class="flbl">Goal 4 &mdash; Reliability &amp; Visibility</span><textarea id="e-g4" rows="2" placeholder="Azure, monitoring, integrations... Leave blank to omit."></textarea></div>
+  <div class="frow"><span class="flbl">Include budget?</span><select id="e-budget-toggle" onchange="toggleBudget()"><option value="no">No &mdash; no new invoice this week</option><option value="yes">Yes &mdash; new invoice received</option></select></div>
+  <div class="budget-box" id="budget-fields" style="display:none">
+    <p class="sec" style="margin-top:0">Legacy Maintenance</p>
+    <div class="frow"><span class="flbl">FY26 budget total</span><input type="text" id="b-leg-budget" value="$85,000"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-leg-actual" placeholder="e.g. $33,800"></div>
+    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-leg-remain" placeholder="e.g. $51,200"></div>
+    <p class="sec">Modernization Development</p>
+    <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-mod-budget" value="$800,000"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-mod-actual" placeholder="e.g. $632,120"></div>
+    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-mod-remain" placeholder="e.g. $167,880"></div>
+    <div class="frow"><span class="flbl">Estimated to complete</span><input type="text" id="b-mod-etc" value="$212,880"></div>
+    <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$45,000"></div>
+  </div>
+  <div class="frow"><span class="flbl">Risks</span><textarea id="e-risks" rows="2" placeholder="New risks or updates &mdash; leave blank for 'no new risks'"></textarea></div>
+  <div class="frow"><span class="flbl">Next steps</span><div><textarea id="e-next" rows="3" placeholder="Upcoming work, UAT prep, releases..."></textarea><p class="hint">Claude writes as paragraph-style sentences</p></div></div>
+  <div class="frow"><span class="flbl">Other notes</span><textarea id="e-other" rows="2" placeholder="Demo this week? Release? Tone adjustments?"></textarea></div>
+  <button class="btn btn-primary" onclick="generateEmail()">&#10024; Generate email draft</button>
+  <div class="err" id="eg-err"></div>
+  <div id="eg-out" style="margin-top:1.25rem"></div>
+</div>
+
+</div><!-- /container -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── NAV ────────────────────────────────────────────────────────────────────
+function navTo(n,btn){
+  document.querySelectorAll('.page').forEach((p,i)=>p.className='page'+(i===n?' on':''));
+  document.querySelectorAll('.tab').forEach(b=>b.className='tab');
+  btn.className='tab on';
+}
+
+// ── SPRINT DATA STORE (localStorage) ──────────────────────────────────────
+const LS_SPRINTS='ctso_sprints_v1';
+const LS_LEG='ctso_prev_leg';
+const LS_MOD='ctso_prev_mod';
+
+// Seed data: sprints 21-27
+const SEED=[
+  {sprint:21,release:'Phase 1 release',goals:2,goalsmet:1,committed:47,done:28,cycle:5,    lead:73.9,  defects:12,value:12},
+  {sprint:22,release:'Phase 1 release',goals:3,goalsmet:1,committed:53,done:35,cycle:19.54,lead:89.83, defects:1, value:31},
+  {sprint:23,release:'Phase 1 release',goals:5,goalsmet:5,committed:45,done:45,cycle:7.025,lead:46.83, defects:16,value:32},
+  {sprint:24,release:'Release 1.1',    goals:2,goalsmet:2,committed:42,done:44,cycle:1.916,lead:3.875, defects:30,value:26},
+  {sprint:25,release:'Release 1.2',    goals:2,goalsmet:2,committed:37,done:46,cycle:1.96, lead:16.375,defects:10,value:34},
+  {sprint:26,release:'Release 1.3',    goals:3,goalsmet:3,committed:39,done:31,cycle:4.66, lead:36.375,defects:9, value:30},
+  {sprint:27,release:'Release 1.4',    goals:4,goalsmet:4,committed:47,done:45,cycle:3.25, lead:38.2,  defects:17,value:24},
+];
+
+function loadSprints(){
+  try{
+    const raw=localStorage.getItem(LS_SPRINTS);
+    if(raw){const d=JSON.parse(raw);if(d&&d.length)return d;}
+  }catch(e){}
+  // First load — seed with historical data
+  localStorage.setItem(LS_SPRINTS,JSON.stringify(SEED));
+  return SEED;
+}
+function saveSprints(data){localStorage.setItem(LS_SPRINTS,JSON.stringify(data));}
+
+function derived(s){
+  const pctAchieved=s.goals>0?Math.round(s.goalsmet/s.goals*100):0;
+  const pctSP=s.committed>0?Math.round(s.done/s.committed*100):0;
+  const defRate=(s.defects+s.value)>0?Math.round(s.defects/(s.defects+s.value)*100):0;
+  return{...s,pctAchieved,pctSP,defRate};
+}
+
+// ── CHART PALETTE ──────────────────────────────────────────────────────────
+const BLUE='#2d5fa6';
+const BLUE_T='rgba(45,95,166,0.8)';
+const TARGET_LINE='rgba(173,216,230,0.9)';
+
+function makeLineChart(id,labels,datasets,yLabel){
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  return new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}},title:{display:!!yLabel,text:yLabel,font:{size:10}}}
+      }
+    }
+  });
+}
+
+function makeBarChart(id,labels,data,yLabel){
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  return new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:yLabel||'',data,backgroundColor:BLUE_T,borderColor:BLUE,borderWidth:1,borderRadius:4}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}}}
+      }
+    }
+  });
+}
+
+let chartInstances={};
+function destroyCharts(){Object.values(chartInstances).forEach(c=>{try{c.destroy();}catch(e){}});chartInstances={};}
+
+function avg3(arr,key){
+  const last3=arr.slice(-3);
+  return Math.round(last3.reduce((s,x)=>s+(x[key]||0),0)/last3.length*10)/10;
+}
+
+function statBanner(elId,txtId,met,text){
+  const el=document.getElementById(elId);
+  const pill=el.querySelector('.pill');
+  const txt=document.getElementById(txtId);
+  el.className='stat-banner '+(met?'met':'notmet');
+  pill.className='pill '+(met?'met':'notmet');
+  pill.textContent=met?'GOAL MET':'GOAL NOT MET';
+  txt.textContent=text;
+}
+
+function renderDashboard(){
+  const raw=loadSprints();
+  const data=raw.map(derived);
+  const labels=data.map(d=>'Sprint '+d.sprint);
+  const latest=data[data.length-1];
+
+  // ── Metric cards ──────────────────────────────────────────────────────────
+  document.getElementById('dc-sprint').textContent='Sprint '+latest.sprint;
+  document.getElementById('dc-committed').textContent=latest.committed;
+  document.getElementById('dc-done').textContent=latest.done;
+  document.getElementById('dc-comp').textContent=latest.pctSP+'%';
+  document.getElementById('dc-goals').textContent=latest.goalsmet+'/'+latest.goals;
+  const avgVel=Math.round(data.slice(-3).reduce((s,d)=>s+d.done,0)/Math.min(3,data.length));
+  document.getElementById('dc-avgvel').textContent=avgVel+' pts';
+  // Warn if completion rate < 80%
+  document.getElementById('dc-comp-card').className='metric-card'+(latest.pctSP<80?' warn':'');
+  document.getElementById('dc-done-card').className='metric-card';
+
+  // ── Source table ───────────────────────────────────────────────────────────
+  const tbody=document.getElementById('source-tbody');
+  tbody.innerHTML=data.map((d,i)=>`
+    <tr class="${i===data.length-1?'current':''}">
+      <td>Sprint ${d.sprint}</td><td>${d.release}</td><td>${d.goals}</td><td>${d.goalsmet}</td>
+      <td>${d.pctAchieved}%</td><td>80%</td><td>${d.committed}</td><td>${d.done}</td>
+      <td>${d.pctSP}%</td><td>${d.cycle}</td><td>${d.lead}</td>
+      <td>${d.defects}</td><td>${d.value}</td><td>${d.defRate}%</td>
+    </tr>`).join('');
+
+  destroyCharts();
+
+  // ── 1. Sprint Goal Completion Rate (line) ──────────────────────────────────
+  const a3gcr=avg3(data,'pctAchieved');
+  statBanner('gcr-stat','gcr-txt',a3gcr>=80,
+    `Average Sprint Goal Completion over last 3 sprints: ${a3gcr}%`);
+  chartInstances.gcr=makeLineChart('chart-gcr',labels,[
+    {label:'% Achieved',data:data.map(d=>d.pctAchieved),borderColor:BLUE,backgroundColor:'transparent',pointBackgroundColor:BLUE,tension:.3,pointRadius:4},
+    {label:'Goal % Achieved',data:data.map(()=>80),borderColor:TARGET_LINE,backgroundColor:'transparent',borderDash:[5,5],pointRadius:0,tension:0}
+  ]);
+
+  // ── 2. Sprint Commitment Reliability (bar) ─────────────────────────────────
+  const a3scr=avg3(data,'pctSP');
+  statBanner('scr-stat','scr-txt',a3scr>=80,
+    `Average % story points completed over last 3 sprints: ${a3scr}%`);
+  chartInstances.scr=makeBarChart('chart-scr',labels,data.map(d=>d.pctSP),'% Story Points Completed');
+
+  // ── 3. Median Cycle Time (line) ────────────────────────────────────────────
+  const a3mct=avg3(data,'cycle');
+  statBanner('mct-stat','mct-txt',a3mct<=6,
+    `Median cycle time for last 3 sprints averaged ${a3mct} days`+(a3mct<=6?', on target':' — above 6-day goal'));
+  chartInstances.mct=makeLineChart('chart-mct',labels,[
+    {label:'Median Cycle Time (days)',data:data.map(d=>d.cycle),borderColor:BLUE,backgroundColor:'transparent',pointBackgroundColor:BLUE,tension:.3,pointRadius:4},
+    {label:'Goal (6 days)',data:data.map(()=>6),borderColor:TARGET_LINE,backgroundColor:'transparent',borderDash:[5,5],pointRadius:0}
+  ]);
+
+  // ── 4. Average Velocity (bar) ──────────────────────────────────────────────
+  const trend=data.length>=2&&data[data.length-1].done>=data[data.length-2].done;
+  statBanner('vel-stat','vel-txt',trend,'Team is '+(trend?'improving':'declining')+' over time');
+  chartInstances.vel=makeBarChart('chart-vel',labels,data.map(d=>d.done),'Velocity (Points)');
+
+  // ── 5. Defect Rate (bar) ───────────────────────────────────────────────────
+  const a3def=avg3(data,'defRate');
+  statBanner('def-stat','def-txt',a3def<=10,
+    `${a3def}% average defect rate over last 3 sprints`+(a3def<=10?' — on target':' — above 10% goal'));
+  chartInstances.def=makeBarChart('chart-def',labels,data.map(d=>d.defRate),'% of Defects');
+
+  // ── 6. Median Lead Time (line) ─────────────────────────────────────────────
+  const a3mlt=avg3(data,'lead');
+  const ltTrend=data.length>=2&&data[data.length-1].lead<=data[data.length-2].lead;
+  statBanner('mlt-stat','mlt-txt',ltTrend,
+    `Median lead time for last 3 sprints averaged ${a3mlt} days`+(ltTrend?', improvement':' — trend increasing'));
+  chartInstances.mlt=makeLineChart('chart-mlt',labels,[
+    {label:'Median Lead Time (days)',data:data.map(d=>d.lead),borderColor:BLUE,backgroundColor:'transparent',pointBackgroundColor:BLUE,tension:.3,pointRadius:4},
+    {label:'Goal (30 days)',data:data.map(()=>30),borderColor:TARGET_LINE,backgroundColor:'transparent',borderDash:[5,5],pointRadius:0}
+  ]);
+}
+
+// ── ADD/EDIT FORM ──────────────────────────────────────────────────────────
+function showAddForm(){
+  // Pre-fill with latest sprint + 1
+  const data=loadSprints();
+  const latest=data[data.length-1];
+  document.getElementById('f-sprint').value=latest.sprint+1;
+  document.getElementById('f-release').value='';
+  ['f-goals','f-goalsmet','f-committed','f-done','f-cycle','f-lead','f-defects','f-value'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('add-form').style.display='block';
+  document.getElementById('add-form').scrollIntoView({behavior:'smooth'});
+}
+
+function saveSprint(){
+  const sprintNum=parseInt(document.getElementById('f-sprint').value);
+  const release=document.getElementById('f-release').value.trim()||'—';
+  const goals=parseInt(document.getElementById('f-goals').value)||0;
+  const goalsmet=parseInt(document.getElementById('f-goalsmet').value)||0;
+  const committed=parseInt(document.getElementById('f-committed').value)||0;
+  const done=parseInt(document.getElementById('f-done').value)||0;
+  const cycle=parseFloat(document.getElementById('f-cycle').value)||0;
+  const lead=parseFloat(document.getElementById('f-lead').value)||0;
+  const defects=parseInt(document.getElementById('f-defects').value)||0;
+  const value=parseInt(document.getElementById('f-value').value)||0;
+  if(!sprintNum){document.getElementById('form-err').style.display='block';document.getElementById('form-err').textContent='Sprint # is required.';return;}
+  document.getElementById('form-err').style.display='none';
+  let data=loadSprints();
+  const existing=data.findIndex(d=>d.sprint===sprintNum);
+  const entry={sprint:sprintNum,release,goals,goalsmet,committed,done,cycle,lead,defects,value};
+  if(existing>=0) data[existing]=entry;
+  else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
+  saveSprints(data);
+  document.getElementById('add-form').style.display='none';
+  renderDashboard();
+  // Also update metric cards with goals from sprint report if available
+  if(S_PARSED&&S_PARSED.sprint_number===sprintNum) updateDashGoals();
+}
+
+// ── SPRINT GOALS ON DASHBOARD ──────────────────────────────────────────────
+let S_PARSED=null;
+function updateDashGoals(){
+  if(!S_PARSED||!S_PARSED.goals||!S_PARSED.goals.length) return;
+  const box=document.getElementById('dash-goals-box');
+  const list=document.getElementById('dash-goals-list');
+  list.innerHTML=S_PARSED.goals.map(g=>`<div class="goal-item">${g}</div>`).join('');
+  box.style.display='block';
+}
+
+// ── SPRINT REPORT ──────────────────────────────────────────────────────────
+function runParse(){
+  const txt=document.getElementById('paste').value.trim();
+  if(!txt){showErr('s-err','Paste sprint report text first.');return;}
+  clearErr('s-err');
+  S_PARSED=parseSprint(txt);
+  renderSprint(S_PARSED);
+  preFillGoals(S_PARSED);
+  updateDashGoals();
+  // Auto-fill the add form with parsed data
+  if(S_PARSED.sprint_number){
+    const compPts=S_PARSED.completed.reduce((s,i)=>s+(i.points||0),0);
+    const committed=S_PARSED.pts_start+S_PARSED.pts_added;
+    const defPts=S_PARSED.completed.filter(i=>['Defects','Bug','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+    const valPts=S_PARSED.completed.filter(i=>i.type==='Story').reduce((s,i)=>s+(i.points||0),0);
+    document.getElementById('f-sprint').value=S_PARSED.sprint_number;
+    document.getElementById('f-goals').value=S_PARSED.goals.length;
+    document.getElementById('f-committed').value=committed;
+    document.getElementById('f-done').value=compPts;
+    document.getElementById('f-defects').value=defPts;
+    document.getElementById('f-value').value=valPts;
+  }
+}
+
+function parseGoals(txt){
+  const goals=[];
+  txt.replace(/\n/g,' ').split(/(?=\d+\.\s+[A-Z])/).forEach(p=>{
+    const m=p.match(/^\d+\.\s+(.+)/);
+    if(m){let c=m[1].replace(/\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d.*/,'').replace(/\s*(Guideline|Remaining|Sprint actions|Active sprint|Story Points).*/i,'').trim();if(c.length>8&&c.length<400)goals.push(c);}
+  });
+  return goals;
+}
+function parseSprint(txt){
+  const p={};
+  const nm=txt.match(/CTS\/?O?\s+Sprint\s+(\d+)/i)||txt.match(/Sprint\s+(\d+)/i);
+  p.sprint_number=nm?parseInt(nm[1]):null;p.sprint_name=nm?nm[0].trim():'Unknown Sprint';p.goals=parseGoals(txt);
+  const compSec=txt.match(/Completed Issues[\s\S]*?(?=Issues Not Completed)/i)?.[0]||'';
+  const completed=[];
+  compSec.split('\n').forEach(l=>{
+    const km=l.match(/CTSO-(\d+)/);if(!km)return;
+    const pm=l.match(/(\d+)\s*$/);
+    const tm=l.match(/(Defects|Bug|Incident|Scope Change|Spike|Sub-task|Task|Story)/i);
+    const raw=l.replace(/CTSO-\d+\s*\*?\s*/,'').replace(/\s+(Story|Defects|Bug|Incident|Scope Change|Spike|Sub-task|Task)\s.*/i,'').replace(/\s+(High|Medium|Low)\s.*/i,'').trim();
+    completed.push({key:'CTSO-'+km[1],type:tm?tm[1]:'Story',points:pm?parseInt(pm[1]):0,added:l.includes('*'),summary:raw});
+  });
+  p.completed=completed;
+  const incSec=txt.match(/Issues Not Completed[\s\S]*?(?=Issues Removed)/i)?.[0]||'';
+  const arrow=incSec.match(/\((\d+)\s*[→\u2192>]+\s*(\d+)\)/);
+  p.pts_start=arrow?parseInt(arrow[1]):0;
+  let addedPts=0;incSec.split('\n').forEach(l=>{const km=l.match(/CTSO-(\d+)/);if(!km)return;const pm=l.match(/(\d+)(?:\s*[→\u2192>]+\s*(\d+))?\s*$/);const pts=pm?(parseInt(pm[2]||pm[1])||0):0;if(l.includes('*'))addedPts+=pts;});
+  p.pts_added=addedPts;
+  const remSec=txt.match(/Issues Removed[\s\S]*?$/i)?.[0]||'';
+  let remPts=0;remSec.split('\n').forEach(l=>{const km=l.match(/CTSO-(\d+)/);if(!km)return;const pm=l.match(/(\d+)\s*$/);if(pm){const v=parseInt(pm[1]);if(!isNaN(v))remPts+=v;}});
+  p.pts_removed=remPts;
+  return p;
+}
+
+function renderSprint(p){
+  const compPts=p.completed.reduce((s,i)=>s+(i.points||0),0);
+  const committed=p.pts_start+p.pts_added,added=p.pts_added,removed=p.pts_removed;
+  const rollover=Math.max(0,committed-removed-compPts);
+  const defPts=p.completed.filter(i=>['Defects','Bug','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+  const valPts=p.completed.filter(i=>i.type==='Story').reduce((s,i)=>s+(i.points||0),0);
+  const valAdd=(defPts+valPts)>0?Math.round(valPts/(defPts+valPts)*100):0;
+  const gc=p.goals.length;
+  document.getElementById('s-out').innerHTML=`
+    <div class="grid-cards">
+      ${[['Sprint',p.sprint_name,'font-size:12px',''],['Goals',gc,'',''],['Committed',committed,'',''],['Completed',compPts,'','color:#1e6e3a'],['Rolling over',rollover,'','color:#7a5c00']].map(([l,v,vs,vc])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="${vs};${vc}">${v}</p></div>`).join('')}
+    </div>
+    <div class="stab-row">
+      <button class="tab on" id="st0" onclick="stab(0,this)">Metrics</button>
+      <button class="tab" id="st1" onclick="stab(1,this)">Goals (${gc})</button>
+      <button class="tab" id="st2" onclick="stab(2,this)">Outputs</button>
+    </div>
+    <div id="sv0">
+      <div class="grid-cards">
+        ${[['Sprint #',p.sprint_number||'','number','m0'],['Release #','Release 1.4','text','m1'],['# Goals',gc,'number','m2'],['Goals achieved','','number','m3'],['SP committed',committed,'number','m4'],['SP done',compPts,'number','m5'],['Added',added,'number','m6'],['Removed',removed,'number','m7'],['Defects (pts)',defPts,'number','m8'],['Value (pts)',valPts,'number','m9'],['Cycle time','','number','m10'],['Lead time','','number','m11']].map(([l,v,t,id])=>`<div class="card"><p class="lbl">${l}</p><input type="${t}" id="${id}" value="${v}" placeholder="—" style="margin-top:4px"></div>`).join('')}
+      </div>
+      <p style="font-size:11px;color:#888;margin-top:6px">Enter Cycle &amp; Lead time from Jira Control Chart, then click Save to Dashboard to update charts.</p>
+      <button class="btn" style="margin-top:8px" onclick="saveFromSprintTab()">Save to Dashboard</button>
+    </div>
+    <div id="sv1" style="display:none">
+      ${gc?p.goals.map((g,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #eee"><input type="checkbox" id="g${i}" style="margin-top:2px;cursor:pointer"><label for="g${i}" style="font-size:13px;cursor:pointer;line-height:1.4">${g}</label></div>`).join('')+`<div style="margin-top:10px;display:flex;align-items:center;gap:10px"><button class="btn" onclick="tally()">Tally goals</button><span id="gtally" style="font-size:13px;color:#666"></span></div>`:'<p style="font-size:13px;color:#888">No goals found.</p>'}
+    </div>
+    <div id="sv2" style="display:none">
+      <p class="sec">Confluence metrics row</p>
+      <div class="mono" id="sc0">${['Sprint #:        Sprint '+(p.sprint_number||'??'),'Release #:       Release 1.4','# Sprint goals:  '+gc,'Goals achieved:  [tally goals tab]','% achieved:      [auto-calculates]','Goal % target:   80%','SP committed:    '+committed,'SP done:         '+compPts,'% SP complete:   '+Math.round(compPts/Math.max(committed,1)*100)+'%','Cycle time:      [enter above then save]','Defects (pts):   '+defPts,'Value (pts):     '+valPts,'Value add %:     '+valAdd+'%','Lead time:       [enter above then save]'].join('\n')}</div>
+      <button class="btn" style="margin-top:6px" onclick="cp('sc0')">Copy</button>
+      <p class="sec">Retro snapshot</p>
+      <div class="mono" id="sc1">${['Started with:  '+p.pts_start+' pts','Added:         '+added+' pts','Removed:       '+removed+' pts','Completed:     '+compPts+' pts','Rolling over:  '+rollover+' pts'].join('\n')}</div>
+      <button class="btn" style="margin-top:6px" onclick="cp('sc1')">Copy</button>
+    </div>
+    <div id="prefill-notice" style="font-size:12px;color:#1254a0;background:#e3f0fd;border-radius:8px;padding:8px 12px;margin-top:8px">&#9998; Goal areas in the Email tab pre-filled from sprint tickets — review and edit before generating.</div>`;
+}
+
+function saveFromSprintTab(){
+  if(!S_PARSED||!S_PARSED.sprint_number)return;
+  const f=id=>parseFloat(document.getElementById(id)?.value)||0;
+  const n=id=>parseInt(document.getElementById(id)?.value)||0;
+  const entry={
+    sprint:S_PARSED.sprint_number,
+    release:document.getElementById('m1')?.value||'—',
+    goals:n('m2'),goalsmet:n('m3'),
+    committed:n('m4'),done:n('m5'),
+    cycle:f('m10'),lead:f('m11'),
+    defects:n('m8'),value:n('m9')
+  };
+  let data=loadSprints();
+  const idx=data.findIndex(d=>d.sprint===entry.sprint);
+  if(idx>=0) data[idx]=entry; else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
+  saveSprints(data);
+  renderDashboard();
+  updateDashGoals();
+  alert('Sprint '+entry.sprint+' saved to dashboard!');
+}
+
+function stab(n,btn){[0,1,2].forEach(i=>{const v=document.getElementById('sv'+i);if(v)v.style.display=i===n?'block':'none';});document.querySelectorAll('.stab-row .tab').forEach(b=>b.className='tab');btn.className='tab on';}
+function tally(){const boxes=document.querySelectorAll('[id^="g"]');const done=[...boxes].filter(b=>b.checked).length;const el=document.getElementById('gtally');if(el)el.textContent=done+'/'+boxes.length+' achieved ('+Math.round(done/boxes.length*100)+'%)';const m3=document.getElementById('m3');if(m3)m3.value=done;}
+
+function preFillGoals(p){
+  const g1=[],g2=[],g3=[],g4=[];
+  const g2kw=/UAT|user accept|end.?user|UX|design|feedback|demo|workflow|experience|view|display|notif|email|SMS|message|announ/i;
+  const g3kw=/pipeline|CI\/CD|automat|tool|agent|mailTrap|test.?env|playbook|deploy|process|velocity|documentation|efficiency|scalab/i;
+  const g4kw=/azure|alert|monitor|logging|compliance|security|reliab|integrat|symbility|xact|API|SOAP|upload.?fail|import|export|environment|config|error|fix|bug|defect|incident/i;
+  p.completed.forEach(i=>{
+    if(!i.summary||i.summary.length<4)return;
+    const s=i.summary,type=i.type;
+    if(['Defects','Bug','Incident'].includes(type)){g2kw.test(s)?g2.push(s):g4.push(s);}
+    else if(type==='Spike'){g3.push(s);}
+    else if(type==='Scope Change'){g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
+    else{g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
+  });
+  const setIfEmpty=(id,val)=>{const el=document.getElementById(id);if(el&&!el.value.trim()&&val.trim())el.value=val;};
+  const build=(done)=>done.length?'Done: '+done.join('; '):'';
+  setIfEmpty('e-g1',build(g1));setIfEmpty('e-g2',build(g2));setIfEmpty('e-g3',build(g3));setIfEmpty('e-g4',build(g4));
+}
+
+// ── EPIC CSV ────────────────────────────────────────────────────────────────
+const DONE_S=['Done'],IP_S=['In Progress','In Review'],EXCL_S=['Canceled','Cancelled'];
+const BASELINE=[
+  {key:'CTSO-712',name:'Upload Failure + Pending Approval Queues',status:'Done',pts:23},{key:'CTSO-153',name:'Pre-Release Readiness',status:'Done',pts:40},{key:'CTSO-151',name:'Build Core Architecture',status:'Done',pts:90},{key:'CTSO-143',name:'Implement Secure and Observable Integration with Member Data API',status:'Done',pts:53},{key:'CTSO-134',name:'Establish CI/CD Pipeline',status:'Done',pts:7},{key:'CTSO-132',name:'Design and Implement Responsive, Role-Based Dashboard Templates',status:'Done',pts:26},{key:'CTSO-131',name:'Develop Unified Navigation and Application Shell',status:'Done',pts:30},{key:'CTSO-130',name:'Job Assignment Workflow for SPG Processors',status:'Done',pts:121},{key:'CTSO-126',name:'Implement Core Claim/Job Search and Detail Functionality',status:'Done',pts:84},{key:'CTSO-116',name:'Implement Document Storage & Data Retention',status:'Done',pts:13},{key:'CTSO-108',name:'Implement Automated Testing Framework',status:'Done',pts:14},{key:'CTSO-107',name:'Implement Centralized Logging, Monitoring, and Alerting',status:'Done',pts:20},{key:'CTSO-104',name:'Build Core Azure-Based Services Architecture',status:'Done',pts:20},{key:'CTSO-78',name:'Foundational Development',status:'Done',pts:13},{key:'CTSO-36',name:'Phase 0 Discovery Deliverables',status:'Done',pts:54},{key:'CTSO-19',name:'CTS Modernization Project - Onboarding',status:'Done',pts:15},{key:'CTSO-677',name:'Representative (Adjuster) Management',status:'Done',pts:6},{key:'CTSO-580',name:'Company Details Improvements',status:'Done',pts:9},{key:'CTSO-592',name:'Visual Alerts',status:'In Review',pts:17},{key:'CTSO-148',name:'Announcements Management',status:'In Progress',pts:8},{key:'CTSO-111',name:'User Admin',status:'In Progress',pts:22},{key:'CTSO-641',name:'CTSO - Member Business & Account Management',status:'Backlog',pts:15},{key:'CTSO-266',name:'Modernizing the Database',status:'Backlog',pts:15},{key:'CTSO-136',name:'CTSO - Authentication, Member Context & Impersonation',status:'Backlog',pts:20},{key:'CTSO-129',name:'Streamline Job Triage & Resolution for Expeditors',status:'Backlog',pts:15},{key:'CTSO-127',name:'CEC Workflow: ResolveIts, Dashboard, and Assignment Details',status:'Backlog',pts:35},{key:'CTSO-124',name:'Build out Billing Workflow',status:'Backlog',pts:15},{key:'CTSO-123',name:'Build out Payment Batch and File Uploads',status:'Backlog',pts:15},{key:'CTSO-119',name:'Enterprise Configuration',status:'Backlog',pts:15},{key:'CTSO-109',name:'CTSO - Member Dashboard & Announcements',status:'Backlog',pts:15},{key:'CTSO-590',name:'Partner (Carrier) Management',status:'REFINED',pts:15},{key:'CTSO-579',name:'Driving Distance Company Assignment Improvement',status:'REFINED',pts:5},{key:'CTSO-128',name:'Develop Estimate Review and Approval Workflow',status:'REFINED',pts:15},{key:'CTSO-118',name:'Build Admin Settings Console for Super Admin',status:'REFINED',pts:35},{key:'CTSO-110',name:'Implement Follow Ups',status:'REFINED',pts:20},
+];
+function dropEpic(e){e.preventDefault();document.getElementById('dz-epic').classList.remove('drag');loadEpicFile(e.dataTransfer.files[0]);}
+function loadEpicFile(f){if(f)f.text().then(parseEpicCSV);}
+function parseCSVLine(line){const fields=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){if(line[i]==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(line[i]===','&&!inQ){fields.push(cur.trim());cur='';}else cur+=line[i];}fields.push(cur.trim());return fields;}
+function parseEpicCSV(txt){
+  const lines=txt.trim().split('\n').filter(l=>l.trim());
+  if(!lines.length){showErr('e-err','File appears empty.');return;}
+  const hdr=parseCSVLine(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,' ').trim());
+  const ki=hdr.findIndex(h=>h.includes('issue key')||h==='key'),ni=hdr.findIndex(h=>h.includes('summary')),si=hdr.findIndex(h=>h.includes('status')),pi=hdr.findIndex(h=>h.includes('story point'));
+  if(ki<0||ni<0||si<0||pi<0){showErr('e-err','Could not find columns. Headers: '+hdr.join(', '));return;}
+  const epics=[];for(let i=1;i<lines.length;i++){const c=parseCSVLine(lines[i]);const key=(c[ki]||'').trim();if(!key.match(/^CTSO-\d+$/))continue;const status=(c[si]||'').trim();if(EXCL_S.includes(status))continue;epics.push({key,name:(c[ni]||'').trim(),status,pts:Math.round(parseFloat(c[pi]||'0')||0)});}
+  if(!epics.length){showErr('e-err','No CTSO- epics found.');return;}
+  clearErr('e-err');
+  const dz=document.getElementById('dz-epic');dz.className='dz ok';dz.innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; ${epics.length} epics loaded</p><p style="font-size:12px;color:#555">${epics.filter(e=>DONE_S.includes(e.status)).length} Done &middot; ${epics.filter(e=>IP_S.includes(e.status)).length} In Progress/Review</p>`;
+  renderEpics(epics);
+}
+function renderEpics(epics){
+  const total=epics.reduce((s,e)=>s+e.pts,0),done=epics.filter(e=>DONE_S.includes(e.status)).reduce((s,e)=>s+e.pts,0);
+  const hasIP=epics.some(e=>IP_S.includes(e.status)),pct=total?Math.round((done/total+(hasIP?.08:0))*1000)/10:0,ipAdj=hasIP?8:0;
+  const changes=epics.filter(e=>{const b=BASELINE.find(x=>x.key===e.key);return b&&b.status!==e.status;});
+  document.getElementById('e-out').innerHTML=`
+    ${[['Done pts',done,''],['Total pts',total,''],['IP adj.',ipAdj+'%',''],['% Complete',pct+'%','font-size:22px;color:#1e6e3a']].map(([l,v,s])=>`<div class="pct-row"><span style="font-size:13px;color:#555">${l}</span><span style="font-size:18px;font-weight:500;${s}">${v}</span></div>`).join('')}
+    <div class="mono" id="epct" style="margin-top:8px">Done\t${done}\nTotal\t${total}\nIP 10%\t${ipAdj}%\nPercent Complete\t${pct}%</div>
+    <button class="btn" style="margin-top:6px" onclick="cp('epct')">Copy</button>
+    ${changes.length?`<p class="sec" style="margin-top:1rem">${changes.length} status change(s) — update % Complete tab in spreadsheet</p>
+    <div style="border:1px solid #eee;border-radius:8px;overflow:hidden"><table class="etable"><thead><tr><th>Key</th><th>Epic</th><th>Was</th><th>Now</th><th>Pts</th></tr></thead>
+    <tbody>${changes.map(e=>{const b=BASELINE.find(x=>x.key===e.key);const sc=DONE_S.includes(e.status)?'ok-b':IP_S.includes(e.status)?'warn-b':'info-b';return`<tr style="background:#fff8e1"><td style="font-size:11px;color:#888">${e.key}</td><td style="font-size:12px">${e.name.length>42?e.name.substring(0,42)+'...':e.name}</td><td style="font-size:11px;color:#888">${b.status}</td><td><span class="badge ${sc}">${e.status}</span></td><td>${e.pts}</td></tr>`;}).join('')}</tbody></table></div>`
+    :'<p style="font-size:12px;color:#888;margin-top:8px">&#10003; No status changes vs. baseline.</p>'}`;
+}
+
+// ── INVOICE ─────────────────────────────────────────────────────────────────
+function dropInv(e){e.preventDefault();document.getElementById('dz-inv').classList.remove('drag');loadInvFile(e.dataTransfer.files[0]);}
+async function loadInvFile(f){
+  if(!f)return;clearErr('i-err');
+  document.getElementById('i-out').innerHTML='<p style="font-size:13px;color:#666"><span class="spinner"></span> Reading PDF...</p>';
+  try{const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let txt='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const tc=await pg.getTextContent();txt+=tc.items.map(x=>x.str).join(' ')+'\n';}parseInvoice(txt);}
+  catch(err){showErr('i-err','Could not read PDF: '+err.message);}
+}
+function parseInvoice(txt){
+  const invM=txt.match(/Invoice\s+ID\s+(\d+)/i)||txt.match(/Invoice\s+#?\s*(\d+)/i);const invNum=invM?invM[1]:'—';
+  const dateM=txt.match(/Issue\s+Date\s+([\d\/]+)/i);const invDate=dateM?dateM[1]:'—';
+  const rows=[];const re=/\[([^\]]+)\]\s+(.*?):?\s+([\w\s]+?)\s+\((\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\)\s+([\d.]+)\s+\$[\d,.]+\s+\$([\d,]+)/g;
+  let m;while((m=re.exec(txt))!==null){const code=m[1].trim();rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,type:code.includes('CCA.11')?'MOD':'LEG',hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});}
+  if(!rows.length){showErr('i-err','Could not parse line items — PDF text layer may not be readable.');return;}
+  document.getElementById('dz-inv').className='dz ok';document.getElementById('dz-inv').innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; Invoice #${invNum} parsed</p><p style="font-size:12px;color:#555">${rows.length} line items</p>`;
+  populateBudgetFromInvoice(rows);renderInvoice(rows,invNum,invDate);
+}
+function fmt$(n){return '$'+Math.round(n).toLocaleString();}
+function loadSavedTotals(){const leg=localStorage.getItem(LS_LEG);const mod=localStorage.getItem(LS_MOD);if(leg)document.getElementById('prev-leg').value=leg;else document.getElementById('prev-leg').value='$30,360';if(mod)document.getElementById('prev-mod').value=mod;else document.getElementById('prev-mod').value='$613,920';}
+function savePrevTotals(){const leg=document.getElementById('prev-leg').value.trim();const mod=document.getElementById('prev-mod').value.trim();if(leg)localStorage.setItem(LS_LEG,leg);if(mod)localStorage.setItem(LS_MOD,mod);}
+function populateBudgetFromInvoice(rows){
+  const legAmt=rows.filter(r=>r.type==='LEG').reduce((s,r)=>s+r.amt,0);const modAmt=rows.filter(r=>r.type==='MOD').reduce((s,r)=>s+r.amt,0);
+  const prevLeg=parseFloat((document.getElementById('prev-leg').value||'$30,360').replace(/[^0-9.]/g,''))||0;const prevMod=parseFloat((document.getElementById('prev-mod').value||'$613,920').replace(/[^0-9.]/g,''))||0;
+  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||'85000').replace(/[^0-9.]/g,''))||85000;const modBudget=parseFloat((document.getElementById('b-mod-budget').value||'800000').replace(/[^0-9.]/g,''))||800000;
+  const newLeg=prevLeg+legAmt,newMod=prevMod+modAmt;
+  localStorage.setItem(LS_LEG,fmt$(newLeg));localStorage.setItem(LS_MOD,fmt$(newMod));
+  document.getElementById('prev-leg').value=fmt$(newLeg);document.getElementById('prev-mod').value=fmt$(newMod);
+  const setF=(id,val)=>{const el=document.getElementById(id);if(el){el.value=val;el.classList.add('autofilled');}};
+  setF('b-leg-actual',fmt$(newLeg));setF('b-leg-remain',fmt$(legBudget-newLeg));setF('b-mod-actual',fmt$(newMod));setF('b-mod-remain',fmt$(modBudget-newMod));
+  document.getElementById('e-budget-toggle').value='yes';document.getElementById('budget-fields').style.display='block';document.getElementById('inv-notice').style.display='block';
+}
+function renderInvoice(rows,invNum,invDate){
+  const mod=rows.filter(r=>r.type==='MOD'),leg=rows.filter(r=>r.type==='LEG');
+  const tMod=mod.reduce((s,r)=>s+r.amt,0),tLeg=leg.reduce((s,r)=>s+r.amt,0),tAll=rows.reduce((s,r)=>s+r.amt,0);
+  const byP={};mod.forEach(r=>{const k=r.person.split(' ')[0];if(!byP[k])byP[k]={name:r.person,hrs:0,amt:0};byP[k].hrs+=r.hrs;byP[k].amt+=r.amt;});
+  const rowMap={Adam:5,Emily:6,Luiz:7,Tyler:8,Yousef:9};
+  const tsv=['Invoice #\tDate\tPeriod Start\tPeriod End\tPerson\tContract\tType\tHours\tRate\tAmount\tNotes\tProcessed Date',...rows.map(r=>[r.invNum,r.invDate,r.start,r.end,r.person,r.code,r.type,r.hrs,r.rate,r.amt,r.notes,''].join('\t'))].join('\n');
+  document.getElementById('i-out').innerHTML=`
+    <div style="background:#eaf6ee;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e6e3a;margin-bottom:1rem">&#10003; Budget numbers updated and auto-populated in Email tab.</div>
+    <div class="grid-cards">${[['MOD','$'+tMod.toLocaleString(),'color:#1254a0'],['LEG','$'+tLeg.toLocaleString(),'color:#1e6e3a'],['Total','$'+tAll.toLocaleString(),'']].map(([l,v,s])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="font-size:16px;${s}">${v}</p></div>`).join('')}</div>
+    <p class="sec">Burn by person — MOD amounts</p>
+    <div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:1rem"><table class="etable"><thead><tr><th>Person</th><th>Row</th><th style="text-align:right">Hours</th><th style="text-align:right">MOD amount</th></tr></thead>
+    <tbody>${Object.entries(byP).map(([k,p])=>`<tr><td style="font-weight:500">${p.name}</td><td>${rowMap[k]||'?'}</td><td style="text-align:right">${p.hrs.toFixed(2)}</td><td style="text-align:right;font-weight:500;color:#1254a0">$${p.amt.toLocaleString()}</td></tr>`).join('')}${leg.length?`<tr style="background:#f8f8f8"><td colspan="4" style="font-size:11px;color:#888;font-style:italic">LEG lines: Invoice Log only</td></tr>`:''}</tbody></table></div>
+    <p class="sec">Invoice log rows</p><div id="inv-tsv" style="display:none">${tsv}</div>
+    <button class="btn" onclick="cp('inv-tsv')">Copy all rows for Excel paste</button>
+    <p class="hint" style="margin-top:4px">Paste into Legacy Budget tab at next empty row</p>`;
+}
+
+// ── EMAIL ────────────────────────────────────────────────────────────────────
+function toggleStatusNote(){document.getElementById('status-note-row').style.display=document.getElementById('e-status').value!=='On Track'?'grid':'none';}
+function toggleBudget(){document.getElementById('budget-fields').style.display=document.getElementById('e-budget-toggle').value==='yes'?'block':'none';}
+async function generateEmail(){
+  const status=document.getElementById('e-status').value;const statusNote=document.getElementById('e-status-note')?.value?.trim()||'';
+  const intro=document.getElementById('e-intro').value.trim();const g1=document.getElementById('e-g1').value.trim();const g2=document.getElementById('e-g2').value.trim();const g3=document.getElementById('e-g3').value.trim();const g4=document.getElementById('e-g4').value.trim();
+  const risks=document.getElementById('e-risks').value.trim();const next=document.getElementById('e-next').value.trim();const other=document.getElementById('e-other').value.trim();
+  const includeBudget=document.getElementById('e-budget-toggle').value==='yes';
+  if(!g1&&!g2&&!g3&&!g4){showErr('eg-err','Add notes for at least one goal area before generating.');return;}
+  clearErr('eg-err');
+  let budgetBlock='';
+  if(includeBudget){budgetBlock=`Legacy Maintenance\n- FY26 Budget Total: ${document.getElementById('b-leg-budget').value}\n- Cost to Date: ${document.getElementById('b-leg-actual').value}\n- Remaining: ${document.getElementById('b-leg-remain').value}\n\nModernization Development\n- Total Budget: ${document.getElementById('b-mod-budget').value}\n- Cost to Date: ${document.getElementById('b-mod-actual').value}\n- Remaining: ${document.getElementById('b-mod-remain').value}\n- Estimated to Complete: ${document.getElementById('b-mod-etc').value}\n- Projected Variance: ${document.getElementById('b-mod-var').value}`;}
+  const sprintCtx=S_PARSED?`Sprint: ${S_PARSED.sprint_name}. Goals: ${S_PARSED.goals.join('; ')}. Completed: ${S_PARSED.completed.map(i=>i.summary).filter(Boolean).slice(0,12).join('; ')}.`:'No sprint report parsed.';
+  const prompt=`Write a weekly project status email for the CTS/O Modernization project at CCA Global Partners. Project manager: Morgan Solomon.\n\nRULES:\n- Professional, neutral tone — positive when genuinely warranted, not manufactured\n- Short and tight. Outcome-focused. No Jira ticket numbers ever.\n- Use specific wording from ticket titles/themes when provided\n- Only include a goal section if content is explicitly provided. If a goal says OMIT, skip it entirely.\n- Next Steps: 2-4 short paragraph-style sentences (not bullet labels). Upcoming work only.\n- Section headers exactly: "Value Added", "Budget Overview", "Risks", "Next Steps"\n- Sub-headers under Value Added exactly: "Consolidate & Modernize the Legacy Platform", "Enhance End-User Experience & Satisfaction", "Improve Operational & Development Efficiency", "Ensure Reliability, Compliance & Visibility"\n- Do not add a sign-off or signature line.\n\nPROJECT STATUS: ${status}\n${status==='On Track'?'Write "Project Status: On Track" on its own line after the intro. No further explanation.':`Write "Project Status: ${status}" on its own line after the intro. Then 2-3 direct sentences on why and the mitigation plan. Based on: "${statusNote||'(no detail — write neutral placeholder)'}"`}\n\nSPRINT CONTEXT:\n${sprintCtx}\n\nGOAL INPUTS:\nGoal 1 — Consolidate & Modernize: ${g1||'OMIT'}\nGoal 2 — End-User Experience: ${g2||'OMIT'}\nGoal 3 — Operational Efficiency: ${g3||'OMIT'}\nGoal 4 — Reliability & Visibility: ${g4||'OMIT'}\n\n${includeBudget?'BUDGET:\n'+budgetBlock:'No Budget Overview section.'}\n\nRISKS: ${risks||'No new risks identified this sprint.'}\nNEXT STEPS: ${next||'Derive from sprint context.'}\n${other?'CONTEXT: '+other:''}\n\nStart with the intro line. No subject line or signature.`;
+  const outEl=document.getElementById('eg-out');outEl.innerHTML='<p style="font-size:13px;color:#666"><span class="spinner"></span> Generating draft...</p>';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const data=await resp.json();const draft=data.content?.find(b=>b.type==='text')?.text||'';
+    if(!draft)throw new Error('Empty response');
+    outEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><p style="font-size:13px;font-weight:500;margin:0">Email draft</p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('draft-text').innerText).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy draft',2000)})">Copy draft</button></div><div class="draft" id="draft-text">${draft.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><p style="font-size:11px;color:#888;margin-top:8px">Review, adjust, then paste into Outlook.</p>`;
+  }catch(err){showErr('eg-err','Could not generate: '+err.message);outEl.innerHTML='';}
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+function cp(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent||el.innerText).then(()=>{});}
+function showErr(id,msg){const el=document.getElementById(id);if(el){el.style.display='block';el.textContent=msg;}}
+function clearErr(id){const el=document.getElementById(id);if(el){el.style.display='none';el.textContent='';}}
+function showAddForm(){document.getElementById('f-sprint').value='';document.getElementById('f-release').value='';['f-goals','f-goalsmet','f-committed','f-done','f-cycle','f-lead','f-defects','f-value'].forEach(id=>document.getElementById(id).value='');document.getElementById('add-form').style.display='block';document.getElementById('add-form').scrollIntoView({behavior:'smooth'});}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  loadSavedTotals();
+  renderDashboard();
+});
+</script>
+</body>
+</html>
