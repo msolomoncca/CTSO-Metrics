@@ -108,9 +108,9 @@ input[type=file]{display:none}
     <div class="metric-card"><p class="mc-lbl">Sprint</p><p class="mc-val" id="dc-sprint">—</p></div>
     <div class="metric-card"><p class="mc-lbl">SP Committed</p><p class="mc-val" id="dc-committed">—</p></div>
     <div class="metric-card" id="dc-done-card"><p class="mc-lbl">SP Done</p><p class="mc-val" id="dc-done">—</p></div>
-    <div class="metric-card" id="dc-comp-card"><p class="mc-lbl">Completion Rate</p><p class="mc-val" id="dc-comp">—</p></div>
     <div class="metric-card"><p class="mc-lbl">Goals Achieved</p><p class="mc-val" id="dc-goals">—</p></div>
     <div class="metric-card"><p class="mc-lbl">Avg Velocity<p class="mc-sub">last 3 sprints</p></p><p class="mc-val" id="dc-avgvel">—</p></div>
+    <div class="metric-card" id="dc-epicpct-card"><p class="mc-lbl">Project % Complete<p class="mc-sub">from epic CSV</p></p><p class="mc-val" id="dc-epicpct">—</p></div>
   </div>
 
   <!-- Sprint goals -->
@@ -301,6 +301,7 @@ function navTo(n,btn){
 const LS_SPRINTS='ctso_sprints_v1';
 const LS_LEG='ctso_prev_leg';
 const LS_MOD='ctso_prev_mod';
+const LS_EPIC_PCT='ctso_epic_pct';
 
 // Seed data: sprints 21-27
 const SEED=[
@@ -398,13 +399,23 @@ function renderDashboard(){
   document.getElementById('dc-sprint').textContent='Sprint '+latest.sprint;
   document.getElementById('dc-committed').textContent=latest.committed;
   document.getElementById('dc-done').textContent=latest.done;
-  document.getElementById('dc-comp').textContent=latest.pctSP+'%';
   document.getElementById('dc-goals').textContent=latest.goalsmet+'/'+latest.goals;
   const avgVel=Math.round(data.slice(-3).reduce((s,d)=>s+d.done,0)/Math.min(3,data.length));
   document.getElementById('dc-avgvel').textContent=avgVel+' pts';
-  // Warn if completion rate < 80%
-  document.getElementById('dc-comp-card').className='metric-card'+(latest.pctSP<80?' warn':'');
   document.getElementById('dc-done-card').className='metric-card';
+  // Project % complete from epic CSV (localStorage)
+  const savedEpicPct=localStorage.getItem(LS_EPIC_PCT);
+  const epicPctEl=document.getElementById('dc-epicpct');
+  const epicPctCard=document.getElementById('dc-epicpct-card');
+  if(savedEpicPct){
+    epicPctEl.textContent=savedEpicPct+'%';
+    epicPctCard.className='metric-card';
+  } else {
+    epicPctEl.textContent='—';
+    epicPctEl.style.fontSize='16px';
+    epicPctEl.style.color='#aaa';
+    epicPctCard.title='Upload epic CSV on the Epic % complete tab to populate this';
+  }
 
   // ── Source table ───────────────────────────────────────────────────────────
   const tbody=document.getElementById('source-tbody');
@@ -671,6 +682,11 @@ function parseEpicCSV(txt){
 function renderEpics(epics){
   const total=epics.reduce((s,e)=>s+e.pts,0),done=epics.filter(e=>DONE_S.includes(e.status)).reduce((s,e)=>s+e.pts,0);
   const hasIP=epics.some(e=>IP_S.includes(e.status)),pct=total?Math.round((done/total+(hasIP?.08:0))*1000)/10:0,ipAdj=hasIP?8:0;
+  // Save to localStorage so dashboard card stays updated
+  localStorage.setItem(LS_EPIC_PCT, pct);
+  // Refresh dashboard card immediately
+  const epicPctEl=document.getElementById('dc-epicpct');
+  if(epicPctEl){epicPctEl.textContent=pct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
   const changes=epics.filter(e=>{const b=BASELINE.find(x=>x.key===e.key);return b&&b.status!==e.status;});
   document.getElementById('e-out').innerHTML=`
     ${[['Done pts',done,''],['Total pts',total,''],['IP adj.',ipAdj+'%',''],['% Complete',pct+'%','font-size:22px;color:#1e6e3a']].map(([l,v,s])=>`<div class="pct-row"><span style="font-size:13px;color:#555">${l}</span><span style="font-size:18px;font-weight:500;${s}">${v}</span></div>`).join('')}
