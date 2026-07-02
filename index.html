@@ -11,6 +11,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .container{max-width:1100px;margin:0 auto;background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 1px 6px rgba(0,0,0,.1)}
 h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 .tabs{display:flex;gap:6px;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;padding-bottom:1rem;flex-wrap:wrap}
+.manage-drawer{display:none;background:#f8f8f8;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;margin-bottom:1.5rem;gap:8px;flex-wrap:wrap}
+.manage-drawer.open{display:flex}
+.manage-btn{font-size:12px;padding:5px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;transition:all .15s}
+.manage-btn:hover{background:#f0f0f0;color:#1a1a1a}
+.manage-btn.on{background:#1a3a6b;color:#fff;border-color:#1a3a6b}
 .tab{font-size:13px;padding:6px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;transition:all .15s}
 .tab:hover{background:#f5f5f5}
 .tab.on{background:#1a3a6b;color:#fff;font-weight:500;border-color:#1a3a6b}
@@ -50,6 +55,9 @@ table.data-tbl th{background:#1a3a6b;color:#fff;padding:7px 10px;text-align:cent
 table.data-tbl td{padding:6px 10px;border-bottom:1px solid #eee;text-align:center}
 table.data-tbl tr:nth-child(even) td{background:#f8f8f8}
 table.data-tbl tr.current td{background:#fff8e1;font-weight:500}
+.editable-cell{cursor:pointer;display:inline-block;min-width:30px;border-radius:4px;padding:1px 4px;transition:background .15s}
+.editable-cell:hover{background:#e8f0fe;outline:1px dashed #4a7fd4}
+.editable-input{font-size:12px;padding:2px 6px;border:1.5px solid #1a3a6b;border-radius:4px;width:80px;text-align:center;background:#fff;font-family:inherit}
 
 /* ── SPRINT / EPIC / INVOICE / EMAIL (existing) ── */
 .card{background:#f8f8f8;border-radius:8px;padding:10px 14px;margin-bottom:6px}
@@ -92,13 +100,20 @@ input[type=file]{display:none}
 </head>
 <body>
 <div class="container">
-<h1>CTS/O Metrics Hub</h1>
-<div class="tabs">
-  <button class="tab on"  onclick="navTo(0,this)">📊 Dashboard</button>
-  <button class="tab"     onclick="navTo(1,this)">Sprint report</button>
-  <button class="tab"     onclick="navTo(2,this)">Epic % complete</button>
-  <button class="tab"     onclick="navTo(3,this)">Invoice</button>
-  <button class="tab"     onclick="navTo(4,this)">Weekly email</button>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;padding-bottom:1rem">
+  <h1 style="margin:0">CTS/O Metrics Hub</h1>
+  <button onclick="toggleManage(this)" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;display:flex;align-items:center;gap:5px">
+    <span>⚙</span> <span id="manage-label">Manage</span>
+  </button>
+</div>
+<div class="manage-drawer" id="manage-drawer">
+  <span style="font-size:11px;color:#999;align-self:center;margin-right:4px;text-transform:uppercase;letter-spacing:.05em">Tools:</span>
+  <button class="manage-btn" id="mb1" onclick="manageNavTo(1,this)">Sprint report</button>
+  <button class="manage-btn" id="mb2" onclick="manageNavTo(2,this)">Epic % complete</button>
+  <button class="manage-btn" id="mb3" onclick="manageNavTo(3,this)">Invoice</button>
+  <button class="manage-btn" id="mb4" onclick="manageNavTo(4,this)">Weekly email</button>
+  <button class="manage-btn" style="margin-left:auto;color:#999" onclick="manageNavTo(0,null)">← Back to Dashboard</button>
 </div>
 
 <!-- ══ DASHBOARD ══════════════════════════════════════════════════════════ -->
@@ -291,11 +306,32 @@ input[type=file]{display:none}
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // ── NAV ────────────────────────────────────────────────────────────────────
-function navTo(n,btn){
-  document.querySelectorAll('.page').forEach((p,i)=>p.className='page'+(i===n?' on':''));
-  document.querySelectorAll('.tab').forEach(b=>b.className='tab');
-  btn.className='tab on';
+function toggleManage(btn){
+  const drawer=document.getElementById('manage-drawer');
+  const isOpen=drawer.classList.contains('open');
+  if(isOpen){
+    drawer.classList.remove('open');
+    document.getElementById('manage-label').textContent='Manage';
+    document.querySelectorAll('.manage-btn').forEach(b=>b.className='manage-btn');
+    // Go back to dashboard
+    document.querySelectorAll('.page').forEach((p,i)=>p.className='page'+(i===0?' on':''));
+  } else {
+    drawer.classList.add('open');
+    document.getElementById('manage-label').textContent='Close';
+  }
 }
+function manageNavTo(n,btn){
+  document.querySelectorAll('.page').forEach((p,i)=>p.className='page'+(i===n?' on':''));
+  document.querySelectorAll('.manage-btn').forEach(b=>b.className='manage-btn');
+  if(btn) btn.className='manage-btn on';
+  if(n===0){
+    // closing back to dashboard — close the drawer too
+    document.getElementById('manage-drawer').classList.remove('open');
+    document.getElementById('manage-label').textContent='Manage';
+  }
+}
+// Legacy alias used elsewhere
+function navTo(n,btn){manageNavTo(n,btn);}
 
 // ── SPRINT DATA STORE (localStorage) ──────────────────────────────────────
 const LS_SPRINTS='ctso_sprints_v1';
@@ -417,15 +453,34 @@ function renderDashboard(){
     epicPctCard.title='Upload epic CSV on the Epic % complete tab to populate this';
   }
 
-  // ── Source table ───────────────────────────────────────────────────────────
+  // ── Source table — inline editable ────────────────────────────────────────
   const tbody=document.getElementById('source-tbody');
-  tbody.innerHTML=data.map((d,i)=>`
-    <tr class="${i===data.length-1?'current':''}">
-      <td>Sprint ${d.sprint}</td><td>${d.release}</td><td>${d.goals}</td><td>${d.goalsmet}</td>
-      <td>${d.pctAchieved}%</td><td>80%</td><td>${d.committed}</td><td>${d.done}</td>
-      <td>${d.pctSP}%</td><td>${d.cycle}</td><td>${d.lead}</td>
-      <td>${d.defects}</td><td>${d.value}</td><td>${d.defRate}%</td>
-    </tr>`).join('');
+  const EDITABLE=['release','goals','goalsmet','committed','done','cycle','lead','defects','value'];
+  const LABELS={release:'Release',goals:'# Goals',goalsmet:'Goals Achieved',committed:'SP Committed',done:'SP Done',cycle:'Cycle Time',lead:'Lead Time',defects:'Defects (pts)',value:'Value (pts)'};
+
+  tbody.innerHTML=data.map((d,i)=>{
+    const dd=derived(d);
+    const isCurrent=i===data.length-1;
+    const rowCls=isCurrent?'current':'';
+    const editCell=(field,val,type='number',step='1')=>
+      `<td><span class="editable-cell" data-sprint="${d.sprint}" data-field="${field}" data-type="${type}" data-step="${step}" title="Click to edit" onclick="startEdit(this)">${val}</span></td>`;
+    return `<tr class="${rowCls}">
+      <td>Sprint ${d.sprint}</td>
+      ${editCell('release',d.release,'text','')}
+      ${editCell('goals',d.goals)}
+      ${editCell('goalsmet',d.goalsmet)}
+      <td>${dd.pctAchieved}%</td>
+      <td>80%</td>
+      ${editCell('committed',d.committed)}
+      ${editCell('done',d.done)}
+      <td>${dd.pctSP}%</td>
+      ${editCell('cycle',d.cycle,'number','0.001')}
+      ${editCell('lead',d.lead,'number','0.001')}
+      ${editCell('defects',d.defects)}
+      ${editCell('value',d.value)}
+      <td>${dd.defRate}%</td>
+    </tr>`;
+  }).join('');
 
   destroyCharts();
 
@@ -767,6 +822,44 @@ async function generateEmail(){
     if(!draft)throw new Error('Empty response');
     outEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><p style="font-size:13px;font-weight:500;margin:0">Email draft</p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('draft-text').innerText).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy draft',2000)})">Copy draft</button></div><div class="draft" id="draft-text">${draft.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><p style="font-size:11px;color:#888;margin-top:8px">Review, adjust, then paste into Outlook.</p>`;
   }catch(err){showErr('eg-err','Could not generate: '+err.message);outEl.innerHTML='';}
+}
+
+// ── INLINE EDIT ───────────────────────────────────────────────────────────────
+function startEdit(span){
+  if(span.querySelector('input'))return; // already editing
+  const field=span.dataset.field;
+  const sprint=parseInt(span.dataset.sprint);
+  const type=span.dataset.type||'number';
+  const step=span.dataset.step||'1';
+  const current=span.textContent.trim();
+  const input=document.createElement('input');
+  input.className='editable-input';
+  input.type=type;
+  if(step)input.step=step;
+  input.value=current;
+  input.style.width=type==='text'?'120px':'70px';
+  span.textContent='';
+  span.appendChild(input);
+  input.focus();
+  input.select();
+  const commit=()=>commitEdit(span,sprint,field,type,input.value);
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='Escape'){renderDashboard();} // cancel
+  });
+}
+
+function commitEdit(span,sprintNum,field,type,rawVal){
+  const val=type==='number'?parseFloat(rawVal)||0:rawVal.trim();
+  let data=loadSprints();
+  const idx=data.findIndex(d=>d.sprint===sprintNum);
+  if(idx<0)return;
+  // For integer fields, round
+  const intFields=['goals','goalsmet','committed','done','defects','value'];
+  data[idx][field]=intFields.includes(field)?Math.round(val):val;
+  saveSprints(data);
+  renderDashboard();
 }
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
