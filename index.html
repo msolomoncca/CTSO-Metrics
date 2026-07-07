@@ -590,7 +590,7 @@ function runParse(){
   if(S_PARSED.sprint_number){
     const compPts=S_PARSED.completed.reduce((s,i)=>s+(i.points||0),0);
     const committed=S_PARSED.pts_start+S_PARSED.pts_added;
-    const defPts=S_PARSED.completed.filter(i=>['Defects','Bug','Incident','Improvement'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+    const defPts=S_PARSED.completed.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
     const valPts=S_PARSED.completed.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
     document.getElementById('f-sprint').value=S_PARSED.sprint_number;
     document.getElementById('f-goals').value=S_PARSED.goals.length;
@@ -618,8 +618,8 @@ function parseSprint(txt){
   compSec.split('\n').forEach(l=>{
     const km=l.match(/CTSO-(\d+)/);if(!km)return;
     const pm=l.match(/(\d+)\s*$/);
-    const tm=l.match(/(Defects|Bug|Incident|Improvement|Scope Change|Spike|Sub-task|Task|Story)/i);
-    const raw=l.replace(/CTSO-\d+\s*\*?\s*/,'').replace(/\s+(Story|Defects|Bug|Incident|Scope Change|Spike|Sub-task|Task)\s.*/i,'').replace(/\s+(High|Medium|Low)\s.*/i,'').trim();
+    const tm=l.match(/(Defect|Incident|Scope Change|Spike|Story)/i);
+    const raw=l.replace(/CTSO-\d+\s*\*?\s*/,'').replace(/\s+(Story|Defect|Incident|Scope Change|Spike)\s.*/i,'').replace(/\s+(High|Medium|Low)\s.*/i,'').trim();
     completed.push({key:'CTSO-'+km[1],type:tm?tm[1]:'Story',points:pm?parseInt(pm[1]):0,added:l.includes('*'),summary:raw});
   });
   p.completed=completed;
@@ -641,7 +641,7 @@ function renderSprint(p){
   const compPts=p.completed.reduce((s,i)=>s+(i.points||0),0);
   const committed=p.pts_start+p.pts_added,added=p.pts_added,removed=p.pts_removed;
   const rollover=Math.max(0,committed-removed-compPts);
-  const defPts=p.completed.filter(i=>['Defects','Bug','Incident','Improvement'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+  const defPts=p.completed.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
   const valPts=p.completed.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
   const valAdd=(defPts+valPts)>0?Math.round(valPts/(defPts+valPts)*100):0;
   const gc=p.goals.length;
@@ -707,7 +707,7 @@ function preFillGoals(p){
   p.completed.forEach(i=>{
     if(!i.summary||i.summary.length<4)return;
     const s=i.summary,type=i.type;
-    if(['Defects','Bug','Incident','Improvement'].includes(type)){g2kw.test(s)?g2.push(s):g4.push(s);}
+    if(['Defect','Incident'].includes(type)){g2kw.test(s)?g2.push(s):g4.push(s);}
     else if(['Spike'].includes(type)){g3.push(s);}
     else if(['Story','Scope Change'].includes(type)){g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
     else{g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
