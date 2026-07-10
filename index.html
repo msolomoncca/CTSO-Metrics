@@ -753,7 +753,7 @@ function parseEpicCSV(txt){
 }
 function renderEpics(epics){
   const total=epics.reduce((s,e)=>s+e.pts,0),done=epics.filter(e=>DONE_S.includes(e.status)).reduce((s,e)=>s+e.pts,0);
-  const hasIP=epics.some(e=>IP_S.includes(e.status)),pct=total?Math.round((done/total+(hasIP?.08:0))*1000)/10:0,ipAdj=hasIP?8:0;
+  const hasIP=epics.some(e=>IP_S.includes(e.status)),pct=total?Math.round((done/total+(hasIP?.02:0))*1000)/10:0,ipAdj=hasIP?2:0;
   // Save to localStorage so dashboard card stays updated
   localStorage.setItem(LS_EPIC_PCT, pct);
   // Refresh dashboard card immediately
@@ -762,7 +762,7 @@ function renderEpics(epics){
   const changes=epics.filter(e=>{const b=BASELINE.find(x=>x.key===e.key);return b&&b.status!==e.status;});
   document.getElementById('e-out').innerHTML=`
     ${[['Done pts',done,''],['Total pts',total,''],['IP adj.',ipAdj+'%',''],['% Complete',pct+'%','font-size:22px;color:#1e6e3a']].map(([l,v,s])=>`<div class="pct-row"><span style="font-size:13px;color:#555">${l}</span><span style="font-size:18px;font-weight:500;${s}">${v}</span></div>`).join('')}
-    <div class="mono" id="epct" style="margin-top:8px">Done\t${done}\nTotal\t${total}\nIP 10%\t${ipAdj}%\nPercent Complete\t${pct}%</div>
+    <div class="mono" id="epct" style="margin-top:8px">Done\t${done}\nTotal\t${total}\nIP 2%\t${ipAdj}%\nPercent Complete\t${pct}%</div>
     <button class="btn" style="margin-top:6px" onclick="cp('epct')">Copy</button>
     ${changes.length?`<p class="sec" style="margin-top:1rem">${changes.length} status change(s) — update % Complete tab in spreadsheet</p>
     <div style="border:1px solid #eee;border-radius:8px;overflow:hidden"><table class="etable"><thead><tr><th>Key</th><th>Epic</th><th>Was</th><th>Now</th><th>Pts</th></tr></thead>
