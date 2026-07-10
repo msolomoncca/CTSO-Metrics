@@ -191,10 +191,15 @@ input[type=file]{display:none}
 
 <!-- ══ SPRINT REPORT ══════════════════════════════════════════════════════ -->
 <div class="page" id="pg1">
-  <p style="font-size:12px;color:#666;margin-bottom:6px">Paste Jira sprint report text:</p>
+  <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px">
+    <p style="font-size:12px;color:#666;margin:0">Paste Jira sprint report text:</p>
+    <button class="btn" style="font-size:11px;padding:3px 10px;color:#999" onclick="startNewSprint()" title="Clears saved sprint context — use when a new sprint begins">↻ Start new sprint</button>
+  </div>
   <textarea id="paste" rows="7" placeholder="Paste sprint report here..."></textarea>
   <button class="btn" style="margin-top:8px" onclick="runParse()">&#9654; Parse</button>
+  <span id="parsed-indicator" style="display:none;font-size:11px;color:#1e6e3a;margin-left:8px">✓ Saved automatically — available until you start a new sprint</span>
   <div class="err" id="s-err"></div>
+  <div id="coverage-banner"></div>
   <div id="s-out" style="margin-top:1rem"></div>
 
   <!-- Source data table -->
@@ -266,6 +271,7 @@ input[type=file]{display:none}
   </div>
   <div class="err" id="i-err"></div>
   <div id="i-out" style="margin-top:1rem"></div>
+  <div id="processed-history" style="margin-top:1.5rem"></div>
 </div>
 
 <!-- ══ WEEKLY EMAIL ═══════════════════════════════════════════════════════ -->
@@ -329,6 +335,10 @@ function manageNavTo(n,btn){
     document.getElementById('manage-drawer').classList.remove('open');
     document.getElementById('manage-label').textContent='Manage';
   }
+  if(n===4){
+    // Opening Weekly Email tab — always show latest known budget, invoice or not
+    populateBudgetFromSaved();
+  }
 }
 // Legacy alias used elsewhere
 function navTo(n,btn){manageNavTo(n,btn);}
@@ -337,6 +347,10 @@ function navTo(n,btn){manageNavTo(n,btn);}
 const LS_SPRINTS='ctso_sprints_v1';
 const LS_LEG='ctso_prev_leg';
 const LS_MOD='ctso_prev_mod';
+const LS_LAST_SPRINT='ctso_last_parsed_sprint';
+const LS_PROCESSED_INV='ctso_processed_invoices';
+const LS_REPORTED='ctso_reported_items_v1'; // {sprintNumber: [ticket keys already mentioned in an email]}
+let CURRENT_NEW_KEYS=[]; // keys newly completed since last email, set after each parse
 const LS_EPIC_PCT='ctso_epic_pct';
 
 // Seed data: sprints 21-27
@@ -578,15 +592,84 @@ function updateDashGoals(){
 }
 
 // ── SPRINT REPORT ──────────────────────────────────────────────────────────
+function getReportedItems(sprintNum){
+  try{
+    const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');
+    return all[sprintNum]||[];
+  }catch(e){return [];}
+}
+function addReportedItems(sprintNum, keys){
+  try{
+    const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');
+    const existing=all[sprintNum]||[];
+    all[sprintNum]=[...new Set([...existing, ...keys])];
+    localStorage.setItem(LS_REPORTED, JSON.stringify(all));
+  }catch(e){}
+}
+function clearReportedItems(sprintNum){
+  try{
+    const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');
+    delete all[sprintNum];
+    localStorage.setItem(LS_REPORTED, JSON.stringify(all));
+  }catch(e){}
+}
+
+function computeNewVsReported(p){
+  const sprintNum=p.sprint_number;
+  const reported=getReportedItems(sprintNum);
+  const allCompletedKeys=p.completed.map(i=>i.key);
+  const newKeys=allCompletedKeys.filter(k=>!reported.includes(k));
+  const alreadyCovered=p.completed.filter(i=>reported.includes(i.key));
+  const newItems=p.completed.filter(i=>newKeys.includes(i.key));
+  CURRENT_NEW_KEYS=newKeys;
+  return {newItems, alreadyCovered, reported, sprintNum};
+}
+
+function renderCoverageBanner(diff){
+  const el=document.getElementById('coverage-banner');
+  if(!el)return;
+  if(diff.alreadyCovered.length===0){
+    el.innerHTML='';
+    return;
+  }
+  el.innerHTML=`<div style="background:#e3f0fd;border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:#1254a0">
+    <strong>${diff.alreadyCovered.length}</strong> completed item(s) were already covered in a previous email this sprint and are excluded from the Email tab pre-fill.
+    <strong>${diff.newItems.length}</strong> item(s) are new since the last update.
+    <button class="btn" style="font-size:10px;padding:2px 8px;margin-left:8px;background:#fff" onclick="toggleCoverageDetail()">View details</button>
+    <button class="btn" style="font-size:10px;padding:2px 8px;margin-left:4px;background:#fff;color:#c00" onclick="resetCoverageForSprint(${diff.sprintNum})">Reset (include all again)</button>
+    <div id="coverage-detail" style="display:none;margin-top:8px">
+      <p style="font-weight:600;margin-bottom:4px">Already covered (excluded):</p>
+      <ul style="margin:0 0 8px 18px">${diff.alreadyCovered.map(i=>`<li>${i.summary||i.key}</li>`).join('')}</ul>
+      <p style="font-weight:600;margin-bottom:4px">New this update (included):</p>
+      <ul style="margin:0 0 0 18px">${diff.newItems.map(i=>`<li>${i.summary||i.key}</li>`).join('')}</ul>
+    </div>
+  </div>`;
+}
+function toggleCoverageDetail(){
+  const d=document.getElementById('coverage-detail');
+  if(d)d.style.display=d.style.display==='none'?'block':'none';
+}
+function resetCoverageForSprint(sprintNum){
+  if(!confirm('This will treat all completed items in Sprint '+sprintNum+' as new again, including ones already mentioned in a previous email. Use this only if you need to re-include something. Continue?'))return;
+  clearReportedItems(sprintNum);
+  if(S_PARSED)  {
+    const diff=computeNewVsReported(S_PARSED);
+    renderCoverageBanner(diff);
+    preFillGoals(S_PARSED, diff.newItems);
+  }
+}
+
 function runParse(){
   const txt=document.getElementById('paste').value.trim();
   if(!txt){showErr('s-err','Paste sprint report text first.');return;}
   clearErr('s-err');
   S_PARSED=parseSprint(txt);
   renderSprint(S_PARSED);
-  preFillGoals(S_PARSED);
+  const diff=computeNewVsReported(S_PARSED);
+  renderCoverageBanner(diff);
+  preFillGoals(S_PARSED, diff.newItems);
   updateDashGoals();
-  // Auto-fill the add form with parsed data
+  // Auto-fill the add form with parsed data — uses FULL completed set (true sprint totals)
   if(S_PARSED.sprint_number){
     const compPts=S_PARSED.completed.reduce((s,i)=>s+(i.points||0),0);
     const committed=S_PARSED.pts_start+S_PARSED.pts_added;
@@ -600,6 +683,41 @@ function runParse(){
     document.getElementById('f-defects').value=defPts;
     document.getElementById('f-value').value=valPts;
   }
+  // Persist so it's available across sessions until "Start new sprint" is clicked
+  try{
+    localStorage.setItem(LS_LAST_SPRINT, JSON.stringify({...S_PARSED, savedAt:Date.now()}));
+  }catch(e){}
+  const ind=document.getElementById('parsed-indicator');
+  if(ind)ind.style.display='inline';
+}
+
+function restoreLastSprint(){
+  try{
+    const raw=localStorage.getItem(LS_LAST_SPRINT);
+    if(!raw)return;
+    const saved=JSON.parse(raw);
+    S_PARSED=saved;
+    renderSprint(S_PARSED);
+    const diff=computeNewVsReported(S_PARSED);
+    renderCoverageBanner(diff);
+    preFillGoals(S_PARSED, diff.newItems);
+    updateDashGoals();
+    const ind=document.getElementById('parsed-indicator');
+    if(ind)ind.style.display='inline';
+  }catch(e){}
+}
+
+function startNewSprint(){
+  if(!confirm('This clears the saved sprint context (goals, defect/value points, committed/done) used to pre-fill the Email tab. Your saved Dashboard history is NOT affected. Continue?'))return;
+  S_PARSED=null;
+  CURRENT_NEW_KEYS=[];
+  localStorage.removeItem(LS_LAST_SPRINT);
+  document.getElementById('paste').value='';
+  document.getElementById('s-out').innerHTML='';
+  document.getElementById('parsed-indicator').style.display='none';
+  document.getElementById('dash-goals-box').style.display='none';
+  // Clear email goal fields since they were pre-filled from the old sprint
+  ['e-g1','e-g2','e-g3','e-g4'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
 }
 
 function parseGoals(txt){
@@ -713,12 +831,13 @@ function saveFromSprintTab(){
 function stab(n,btn){[0,1,2].forEach(i=>{const v=document.getElementById('sv'+i);if(v)v.style.display=i===n?'block':'none';});document.querySelectorAll('.stab-row .tab').forEach(b=>b.className='tab');btn.className='tab on';}
 function tally(){const boxes=document.querySelectorAll('[id^="g"]');const done=[...boxes].filter(b=>b.checked).length;const el=document.getElementById('gtally');if(el)el.textContent=done+'/'+boxes.length+' achieved ('+Math.round(done/boxes.length*100)+'%)';const m3=document.getElementById('m3');if(m3)m3.value=done;}
 
-function preFillGoals(p){
+function preFillGoals(p, itemsOverride){
+  const items=itemsOverride||p.completed;
   const g1=[],g2=[],g3=[],g4=[];
   const g2kw=/UAT|user accept|end.?user|UX|design|feedback|demo|workflow|experience|view|display|notif|email|SMS|message|announ/i;
   const g3kw=/pipeline|CI\/CD|automat|tool|agent|mailTrap|test.?env|playbook|deploy|process|velocity|documentation|efficiency|scalab/i;
   const g4kw=/azure|alert|monitor|logging|compliance|security|reliab|integrat|symbility|xact|API|SOAP|upload.?fail|import|export|environment|config|error|fix|bug|defect|incident/i;
-  p.completed.forEach(i=>{
+  items.forEach(i=>{
     if(!i.summary||i.summary.length<4)return;
     const s=i.summary,type=i.type;
     if(['Defect','Incident'].includes(type)){g2kw.test(s)?g2.push(s):g4.push(s);}
@@ -726,9 +845,10 @@ function preFillGoals(p){
     else if(['Story','Scope Change'].includes(type)){g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
     else{g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
   });
-  const setIfEmpty=(id,val)=>{const el=document.getElementById(id);if(el&&!el.value.trim()&&val.trim())el.value=val;};
+  // Always overwrite (not setIfEmpty) since re-parsing mid-sprint should refresh with the new delta
+  const setField=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
   const build=(done)=>done.length?'Done: '+done.join('; '):'';
-  setIfEmpty('e-g1',build(g1));setIfEmpty('e-g2',build(g2));setIfEmpty('e-g3',build(g3));setIfEmpty('e-g4',build(g4));
+  setField('e-g1',build(g1));setField('e-g2',build(g2));setField('e-g3',build(g3));setField('e-g4',build(g4));
 }
 
 // ── EPIC CSV ────────────────────────────────────────────────────────────────
@@ -784,9 +904,62 @@ function parseInvoice(txt){
   const rows=[];const re=/\[([^\]]+)\]\s+(.*?):?\s+([\w\s]+?)\s+\((\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\)\s+([\d.]+)\s+\$[\d,.]+\s+\$([\d,]+)/g;
   let m;while((m=re.exec(txt))!==null){const code=m[1].trim();rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,type:code.includes('CCA.11')?'MOD':'LEG',hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});}
   if(!rows.length){showErr('i-err','Could not parse line items — PDF text layer may not be readable.');return;}
-  document.getElementById('dz-inv').className='dz ok';document.getElementById('dz-inv').innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; Invoice #${invNum} parsed</p><p style="font-size:12px;color:#555">${rows.length} line items</p>`;
-  populateBudgetFromInvoice(rows);renderInvoice(rows,invNum,invDate);
+
+  const processed=getProcessedInvoices();
+  const already=processed.find(p=>p.invNum===invNum);
+
+  document.getElementById('dz-inv').className='dz ok';
+  document.getElementById('dz-inv').innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; Invoice #${invNum} parsed</p><p style="font-size:12px;color:#555">${rows.length} line items</p>`;
+
+  if(already){
+    showDuplicateWarning(invNum, already.date, rows, invDate);
+    renderInvoice(rows,invNum,invDate,false);
+  } else {
+    populateBudgetFromInvoice(rows);
+    renderInvoice(rows,invNum,invDate,true);
+    markInvoiceProcessed(invNum, rows);
+  }
 }
+
+function getProcessedInvoices(){
+  try{return JSON.parse(localStorage.getItem(LS_PROCESSED_INV)||'[]');}catch(e){return [];}
+}
+function markInvoiceProcessed(invNum, rows){
+  const list=getProcessedInvoices();
+  const total=rows.reduce((s,r)=>s+r.amt,0);
+  list.push({invNum, date:new Date().toLocaleDateString(), total});
+  localStorage.setItem(LS_PROCESSED_INV, JSON.stringify(list));
+  renderProcessedHistory();
+}
+function renderProcessedHistory(){
+  const el=document.getElementById('processed-history');
+  if(!el)return;
+  const list=getProcessedInvoices();
+  if(!list.length){el.innerHTML='';return;}
+  el.innerHTML=`<p class="sec">Processed invoices (this browser)</p>
+    <div style="border:1px solid #eee;border-radius:8px;overflow:hidden">
+      <table class="etable"><thead><tr><th>Invoice #</th><th>Processed</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${list.slice().reverse().map(p=>`<tr><td>${p.invNum}</td><td style="font-size:11px;color:#888">${p.date}</td><td style="text-align:right">$${p.total.toLocaleString()}</td></tr>`).join('')}</tbody></table>
+    </div>`;
+}
+function showDuplicateWarning(invNum, prevDate, rows, invDate){
+  const el=document.getElementById('i-out');
+  el.innerHTML=`<div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:12px 14px;margin-bottom:1rem">
+    <p style="font-size:13px;font-weight:600;color:#e65100;margin:0 0 4px">⚠ Invoice #${invNum} was already processed on ${prevDate}</p>
+    <p style="font-size:12px;color:#7a5c00;margin:0 0 10px">To avoid double-counting, these amounts were NOT added to your running totals again. The breakdown below is for review only.</p>
+    <button class="btn" style="font-size:11px;background:#fff;color:#e65100;border-color:#e65100" onclick="forceReprocessInvoice('${invNum}')">Force re-add to totals anyway</button>
+  </div>`;
+  window._pendingInvoiceRows=rows; window._pendingInvoiceDate=invDate;
+}
+function forceReprocessInvoice(invNum){
+  if(!confirm('This will add invoice #'+invNum+' amounts to your running totals again. Only do this if you are certain it was not already counted. Continue?'))return;
+  const rows=window._pendingInvoiceRows; const invDate=window._pendingInvoiceDate;
+  if(!rows)return;
+  populateBudgetFromInvoice(rows);
+  renderInvoice(rows,invNum,invDate,true);
+  markInvoiceProcessed(invNum, rows);
+}
+
 function fmt$(n){return '$'+Math.round(n).toLocaleString();}
 function loadSavedTotals(){const leg=localStorage.getItem(LS_LEG);const mod=localStorage.getItem(LS_MOD);if(leg)document.getElementById('prev-leg').value=leg;else document.getElementById('prev-leg').value='$30,360';if(mod)document.getElementById('prev-mod').value=mod;else document.getElementById('prev-mod').value='$613,920';}
 function savePrevTotals(){const leg=document.getElementById('prev-leg').value.trim();const mod=document.getElementById('prev-mod').value.trim();if(leg)localStorage.setItem(LS_LEG,leg);if(mod)localStorage.setItem(LS_MOD,mod);}
@@ -801,14 +974,45 @@ function populateBudgetFromInvoice(rows){
   setF('b-leg-actual',fmt$(newLeg));setF('b-leg-remain',fmt$(legBudget-newLeg));setF('b-mod-actual',fmt$(newMod));setF('b-mod-remain',fmt$(modBudget-newMod));
   document.getElementById('e-budget-toggle').value='yes';document.getElementById('budget-fields').style.display='block';document.getElementById('inv-notice').style.display='block';
 }
-function renderInvoice(rows,invNum,invDate){
+
+function populateBudgetFromSaved(){
+  // Shows current running totals in the Email tab regardless of whether an invoice was uploaded this session
+  const prevLeg=parseFloat((localStorage.getItem(LS_LEG)||'$30,360').replace(/[^0-9.]/g,''))||0;
+  const prevMod=parseFloat((localStorage.getItem(LS_MOD)||'$613,920').replace(/[^0-9.]/g,''))||0;
+  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||'85000').replace(/[^0-9.]/g,''))||85000;
+  const modBudget=parseFloat((document.getElementById('b-mod-budget').value||'800000').replace(/[^0-9.]/g,''))||800000;
+  const actEl=document.getElementById('b-leg-actual');
+  // Only auto-fill if the field is currently empty — never clobber a manual edit or fresh invoice fill
+  if(actEl && !actEl.value.trim()){
+    actEl.value=fmt$(prevLeg);
+    document.getElementById('b-leg-remain').value=fmt$(legBudget-prevLeg);
+  }
+  const modActEl=document.getElementById('b-mod-actual');
+  if(modActEl && !modActEl.value.trim()){
+    modActEl.value=fmt$(prevMod);
+    document.getElementById('b-mod-remain').value=fmt$(modBudget-prevMod);
+  }
+  // Show a subtle note so it's clear these are last-known totals, not necessarily this week's invoice
+  const notice=document.getElementById('inv-notice');
+  if(notice && notice.style.display!=='block'){
+    notice.textContent='ℹ Showing last known running totals — upload a new invoice above to update, or edit these manually.';
+    notice.style.display='block';
+    notice.style.background='#e3f0fd'; notice.style.color='#1254a0';
+  }
+}
+function renderInvoice(rows,invNum,invDate,wasAdded){
   const mod=rows.filter(r=>r.type==='MOD'),leg=rows.filter(r=>r.type==='LEG');
   const tMod=mod.reduce((s,r)=>s+r.amt,0),tLeg=leg.reduce((s,r)=>s+r.amt,0),tAll=rows.reduce((s,r)=>s+r.amt,0);
   const byP={};mod.forEach(r=>{const k=r.person.split(' ')[0];if(!byP[k])byP[k]={name:r.person,hrs:0,amt:0};byP[k].hrs+=r.hrs;byP[k].amt+=r.amt;});
   const rowMap={Adam:5,Emily:6,Luiz:7,Tyler:8,Yousef:9};
   const tsv=['Invoice #\tDate\tPeriod Start\tPeriod End\tPerson\tContract\tType\tHours\tRate\tAmount\tNotes\tProcessed Date',...rows.map(r=>[r.invNum,r.invDate,r.start,r.end,r.person,r.code,r.type,r.hrs,r.rate,r.amt,r.notes,''].join('\t'))].join('\n');
+
+  const banner=wasAdded
+    ?`<div style="background:#eaf6ee;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e6e3a;margin-bottom:1rem">&#10003; Budget numbers updated and auto-populated in Email tab.</div>`
+    :document.getElementById('i-out').innerHTML; // preserve the duplicate-warning banner already rendered
+
   document.getElementById('i-out').innerHTML=`
-    <div style="background:#eaf6ee;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e6e3a;margin-bottom:1rem">&#10003; Budget numbers updated and auto-populated in Email tab.</div>
+    ${banner}
     <div class="grid-cards">${[['MOD','$'+tMod.toLocaleString(),'color:#1254a0'],['LEG','$'+tLeg.toLocaleString(),'color:#1e6e3a'],['Total','$'+tAll.toLocaleString(),'']].map(([l,v,s])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="font-size:16px;${s}">${v}</p></div>`).join('')}</div>
     <p class="sec">Burn by person — MOD amounts</p>
     <div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:1rem"><table class="etable"><thead><tr><th>Person</th><th>Row</th><th style="text-align:right">Hours</th><th style="text-align:right">MOD amount</th></tr></thead>
@@ -837,8 +1041,28 @@ async function generateEmail(){
     const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
     const data=await resp.json();const draft=data.content?.find(b=>b.type==='text')?.text||'';
     if(!draft)throw new Error('Empty response');
-    outEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><p style="font-size:13px;font-weight:500;margin:0">Email draft</p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('draft-text').innerText).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy draft',2000)})">Copy draft</button></div><div class="draft" id="draft-text">${draft.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><p style="font-size:11px;color:#888;margin-top:8px">Review, adjust, then paste into Outlook.</p>`;
+    outEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><p style="font-size:13px;font-weight:500;margin:0">Email draft</p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('draft-text').innerText).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy draft',2000)})">Copy draft</button></div><div class="draft" id="draft-text">${draft.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      ${S_PARSED&&CURRENT_NEW_KEYS.length?`<div style="margin-top:12px;padding:10px 14px;background:#f8f8f8;border-radius:8px">
+        <p style="font-size:12px;color:#666;margin:0 0 6px">Once you've sent this email, mark these ${CURRENT_NEW_KEYS.length} item(s) as covered so next week's pre-fill won't repeat them.</p>
+        <button class="btn" style="font-size:12px" onclick="markCurrentItemsReported()">✓ Mark items as covered (I'm sending this)</button>
+        <span id="mark-covered-confirm" style="display:none;font-size:12px;color:#1e6e3a;margin-left:8px">✓ Marked — excluded from future pre-fills this sprint</span>
+      </div>`:''}
+      <p style="font-size:11px;color:#888;margin-top:8px">Review, adjust, then paste into Outlook.</p>`;
   }catch(err){showErr('eg-err','Could not generate: '+err.message);outEl.innerHTML='';}
+}
+
+function markCurrentItemsReported(){
+  if(!S_PARSED||!CURRENT_NEW_KEYS.length)return;
+  addReportedItems(S_PARSED.sprint_number, CURRENT_NEW_KEYS);
+  const btn=document.querySelector('#eg-out button[onclick="markCurrentItemsReported()"]');
+  if(btn)btn.style.display='none';
+  const conf=document.getElementById('mark-covered-confirm');
+  if(conf)conf.style.display='inline';
+  // Refresh the coverage banner on the Sprint tab to reflect the update
+  if(S_PARSED){
+    const diff=computeNewVsReported(S_PARSED);
+    renderCoverageBanner(diff);
+  }
 }
 
 // ── INLINE EDIT ───────────────────────────────────────────────────────────────
@@ -889,6 +1113,8 @@ function showAddForm(){document.getElementById('f-sprint').value='';document.get
 window.addEventListener('DOMContentLoaded',()=>{
   loadSavedTotals();
   renderDashboard();
+  restoreLastSprint();
+  renderProcessedHistory();
 });
 </script>
 </body>
