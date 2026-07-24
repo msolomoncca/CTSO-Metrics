@@ -300,7 +300,11 @@ input[type=file]{display:none}
   <div class="frow"><span class="flbl">Risks</span><textarea id="e-risks" rows="2" placeholder="New risks or updates &mdash; leave blank for 'no new risks'"></textarea></div>
   <div class="frow"><span class="flbl">Next steps</span><div><textarea id="e-next" rows="3" placeholder="Upcoming work, UAT prep, releases..."></textarea><p class="hint">Claude writes as paragraph-style sentences</p></div></div>
   <div class="frow"><span class="flbl">Other notes</span><textarea id="e-other" rows="2" placeholder="Demo this week? Release? Tone adjustments?"></textarea></div>
-  <button class="btn btn-primary" onclick="generateEmail()">&#10024; Generate email draft</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="copyForClaude()">📋 Copy for Claude</button>
+    <button class="btn" onclick="generateEmail()" title="Requires this page to be hosted with a working API connection — often fails on static hosting">&#10024; Try in-app generate</button>
+  </div>
+  <p class="hint" style="margin-top:6px">Copy for Claude formats everything below into plain text — paste it into a Claude chat and ask for the email draft.</p>
   <div class="err" id="eg-err"></div>
   <div id="eg-out" style="margin-top:1.25rem"></div>
 </div>
@@ -1072,6 +1076,73 @@ function renderInvoice(rows,invNum,invDate,wasAdded){
 // ── EMAIL ────────────────────────────────────────────────────────────────────
 function toggleStatusNote(){document.getElementById('status-note-row').style.display=document.getElementById('e-status').value!=='On Track'?'grid':'none';}
 function toggleBudget(){document.getElementById('budget-fields').style.display=document.getElementById('e-budget-toggle').value==='yes'?'block':'none';}
+function copyForClaude(){
+  const status=document.getElementById('e-status').value;
+  const statusNote=document.getElementById('e-status-note')?.value?.trim()||'';
+  const intro=document.getElementById('e-intro').value.trim();
+  const g1=document.getElementById('e-g1').value.trim();
+  const g2=document.getElementById('e-g2').value.trim();
+  const g3=document.getElementById('e-g3').value.trim();
+  const g4=document.getElementById('e-g4').value.trim();
+  const risks=document.getElementById('e-risks').value.trim();
+  const next=document.getElementById('e-next').value.trim();
+  const other=document.getElementById('e-other').value.trim();
+  const includeBudget=document.getElementById('e-budget-toggle').value==='yes';
+
+  const lines=[];
+  lines.push('CTS/O Weekly Email — inputs for Claude');
+  lines.push('');
+  lines.push('Sprint context: '+(S_PARSED?S_PARSED.sprint_name:'(not parsed this session)'));
+  lines.push('Project status: '+status);
+  if(status!=='On Track' && statusNote) lines.push('Status reason/mitigation notes: '+statusNote);
+  lines.push('Intro line: '+intro);
+  lines.push('');
+  lines.push('Goal 1 — Consolidate & Modernize the Legacy Platform:');
+  lines.push(g1||'(nothing this week — omit this section)');
+  lines.push('');
+  lines.push('Goal 2 — Enhance End-User Experience & Satisfaction:');
+  lines.push(g2||'(nothing this week — omit this section)');
+  lines.push('');
+  lines.push('Goal 3 — Improve Operational & Development Efficiency:');
+  lines.push(g3||'(nothing this week — omit this section)');
+  lines.push('');
+  lines.push('Goal 4 — Ensure Reliability, Compliance & Visibility:');
+  lines.push(g4||'(nothing this week — omit this section)');
+  lines.push('');
+  if(includeBudget){
+    lines.push('Budget Overview:');
+    lines.push('Legacy Maintenance');
+    lines.push('- FY26 Budget Total: '+document.getElementById('b-leg-budget').value);
+    lines.push('- Cost to Date: '+document.getElementById('b-leg-actual').value);
+    lines.push('- Remaining: '+document.getElementById('b-leg-remain').value);
+    lines.push('Modernization Development');
+    lines.push('- Total Budget: '+document.getElementById('b-mod-budget').value);
+    lines.push('- Cost to Date: '+document.getElementById('b-mod-actual').value);
+    lines.push('- Remaining: '+document.getElementById('b-mod-remain').value);
+    lines.push('- Estimated to Complete: '+document.getElementById('b-mod-etc').value);
+    lines.push('- Projected Variance: '+document.getElementById('b-mod-var').value);
+  } else {
+    lines.push('Budget: no new invoice this week — do not include a Budget Overview section.');
+  }
+  lines.push('');
+  lines.push('Risks: '+(risks||'No new risks identified this sprint.'));
+  lines.push('');
+  lines.push('Next steps: '+(next||'(derive from sprint context)'));
+  if(other){lines.push('');lines.push('Other notes: '+other);}
+  lines.push('');
+  lines.push('Please write this weekly CTS/O project update email using the writing guide and format we have used before.');
+
+  const text=lines.join('\n');
+  navigator.clipboard.writeText(text).then(()=>{
+    const el=document.getElementById('eg-out');
+    el.innerHTML='<div style="background:#eaf6ee;border-radius:8px;padding:10px 14px;font-size:13px;color:#1e6e3a">&#10003; Copied! Paste this into a Claude chat and ask for the email draft.</div><div class="mono" style="margin-top:10px;white-space:pre-wrap">'+text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+  }).catch(()=>{
+    showErr('eg-err','Could not copy automatically — select and copy the text below manually.');
+    const el=document.getElementById('eg-out');
+    el.innerHTML='<div class="mono" style="white-space:pre-wrap">'+text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+  });
+}
+
 async function generateEmail(){
   const status=document.getElementById('e-status').value;const statusNote=document.getElementById('e-status-note')?.value?.trim()||'';
   const intro=document.getElementById('e-intro').value.trim();const g1=document.getElementById('e-g1').value.trim();const g2=document.getElementById('e-g2').value.trim();const g3=document.getElementById('e-g3').value.trim();const g4=document.getElementById('e-g4').value.trim();
