@@ -672,8 +672,8 @@ function runParse(){
   // Auto-fill the add form with parsed data — uses FULL completed set (true sprint totals)
   if(S_PARSED.sprint_number){
     const compPts=S_PARSED.completed.reduce((s,i)=>s+(i.points||0),0);
-    const committed=S_PARSED.pts_start+S_PARSED.pts_added;
-    const issuesForMetrics=S_PARSED.completed.length>0?S_PARSED.completed:(S_PARSED.incomplete||[]);
+    const committed=S_PARSED.pts_start;
+    const issuesForMetrics=[...S_PARSED.completed, ...(S_PARSED.incomplete||[])];
     const defPts=issuesForMetrics.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
     const valPts=issuesForMetrics.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
     document.getElementById('f-sprint').value=S_PARSED.sprint_number;
@@ -734,21 +734,23 @@ function parseSprint(txt){
   p.sprint_number=nm?parseInt(nm[1]):null;p.sprint_name=nm?nm[0].trim():'Unknown Sprint';p.goals=parseGoals(txt);
   const compSec=txt.match(/Completed Issues[\s\S]*?(?=Issues Not Completed)/i)?.[0]||'';
   const completed=[];
+  let addedFromCompleted=0;
   compSec.split('\n').forEach(l=>{
     const km=l.match(/CTSO-(\d+)/);if(!km)return;
     const pm=l.match(/(\d+)\s*$/);
     const tm=l.match(/(Defect|Incident|Scope Change|Spike|Story)/i);
     const raw=l.replace(/CTSO-\d+\s*\*?\s*/,'').replace(/\s+(Story|Defect|Incident|Scope Change|Spike)\s.*/i,'').replace(/\s+(High|Medium|Low)\s.*/i,'').trim();
-    completed.push({key:'CTSO-'+km[1],type:tm?tm[1]:'Story',points:pm?parseInt(pm[1]):0,added:l.includes('*'),summary:raw});
+    const pts=pm?parseInt(pm[1]):0;
+    const isAdded=l.includes('*');
+    if(isAdded)addedFromCompleted+=pts;
+    completed.push({key:'CTSO-'+km[1],type:tm?tm[1]:'Story',points:pts,added:isAdded,summary:raw});
   });
   p.completed=completed;
+  const completedTotal=completed.reduce((s,i)=>s+(i.points||0),0);
+
   const incSec=txt.match(/Issues Not Completed[\s\S]*?(?=Issues Removed)/i)?.[0]||
                txt.match(/Issues Not Completed[\s\S]*?$/i)?.[0]||'';
-  // Handle both (X → Y) and single (X) patterns for committed points
-  const arrowM=incSec.match(/\((\d+)\s*[→\u2192>]+\s*(\d+)\)/);
-  const singleM=incSec.match(/\((\d+)\)/);
-  p.pts_start=arrowM?parseInt(arrowM[1]):singleM?parseInt(singleM[1]):0;
-  let addedPts=0;
+  let addedFromIncomplete=0;
   const incomplete=[];
   incSec.split('\n').forEach(l=>{
     const km=l.match(/CTSO-(\d+)/);if(!km)return;
@@ -756,23 +758,35 @@ function parseSprint(txt){
     const tm=l.match(/(Defect|Incident|Scope Change|Spike|Story)/i);
     const pts=pm?(parseInt(pm[2]||pm[1])||0):0;
     const raw=l.replace(/CTSO-\d+\s*\*?\s*/,'').replace(/\s+(Defect|Incident|Scope Change|Spike|Story)\s.*/i,'').replace(/\s+(High|Medium|Low)\s.*/i,'').trim();
-    if(l.includes('*'))addedPts+=pts;
-    incomplete.push({key:'CTSO-'+km[1],type:tm?tm[1]:'Story',points:pts,added:l.includes('*'),summary:raw});
+    const isAdded=l.includes('*');
+    if(isAdded)addedFromIncomplete+=pts;
+    incomplete.push({key:'CTSO-'+km[1],type:tm?tm[1]:'Story',points:pts,added:isAdded,summary:raw});
   });
-  p.pts_added=addedPts;
   p.incomplete=incomplete;
+  const incompleteTotal=incomplete.reduce((s,i)=>s+(i.points||0),0);
+
   const remSec=txt.match(/Issues Removed[\s\S]*?$/i)?.[0]||'';
-  let remPts=0;remSec.split('\n').forEach(l=>{const km=l.match(/CTSO-(\d+)/);if(!km)return;const pm=l.match(/(\d+)\s*$/);if(pm){const v=parseInt(pm[1]);if(!isNaN(v))remPts+=v;}});
+  let remPts=0, addedFromRemoved=0;
+  remSec.split('\n').forEach(l=>{
+    const km=l.match(/CTSO-(\d+)/);if(!km)return;
+    const pm=l.match(/(\d+)\s*$/);
+    if(pm){const v=parseInt(pm[1]);if(!isNaN(v)){remPts+=v; if(l.includes('*'))addedFromRemoved+=v;}}
+  });
   p.pts_removed=remPts;
+
+  // Correct formula: Committed = Completed + Not Completed + Removed − points on items added mid-sprint
+  const addedTotal=addedFromCompleted+addedFromIncomplete+addedFromRemoved;
+  p.pts_added=addedTotal;
+  p.pts_start=completedTotal+incompleteTotal+remPts-addedTotal;
   return p;
 }
 
 function renderSprint(p){
   const compPts=p.completed.reduce((s,i)=>s+(i.points||0),0);
-  const committed=p.pts_start+p.pts_added,added=p.pts_added,removed=p.pts_removed;
+  const committed=p.pts_start,added=p.pts_added,removed=p.pts_removed;
   const rollover=Math.max(0,committed-removed-compPts);
   // Use completed issues for defect/value; fall back to incomplete if sprint still active
-  const issuesForMetrics=p.completed.length>0?p.completed:(p.incomplete||[]);
+  const issuesForMetrics=[...p.completed, ...(p.incomplete||[])];
   const defPts=issuesForMetrics.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
   const valPts=issuesForMetrics.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
   const valAdd=(defPts+valPts)>0?Math.round(valPts/(defPts+valPts)*100):0;
