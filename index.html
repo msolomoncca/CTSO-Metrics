@@ -885,23 +885,56 @@ function parseEpicCSV(txt){
   const dz=document.getElementById('dz-epic');dz.className='dz ok';dz.innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; ${epics.length} epics loaded</p><p style="font-size:12px;color:#555">${epics.filter(e=>DONE_S.includes(e.status)).length} Done &middot; ${epics.filter(e=>IP_S.includes(e.status)).length} In Progress/Review</p>`;
   renderEpics(epics);
 }
+let CURRENT_EPICS_DATA=null; // stored so the IP adj input can recalc live
+
 function renderEpics(epics){
+  CURRENT_EPICS_DATA=epics;
+  const hasIP=epics.some(e=>IP_S.includes(e.status));
+  renderEpicsWithAdj(hasIP?2:0);
+}
+
+function renderEpicsWithAdj(ipAdjPct){
+  const epics=CURRENT_EPICS_DATA;
+  if(!epics)return;
   const total=epics.reduce((s,e)=>s+e.pts,0),done=epics.filter(e=>DONE_S.includes(e.status)).reduce((s,e)=>s+e.pts,0);
-  const hasIP=epics.some(e=>IP_S.includes(e.status)),pct=total?Math.round((done/total+(hasIP?.02:0))*1000)/10:0,ipAdj=hasIP?2:0;
-  // Save to localStorage so dashboard card stays updated
+  const hasIP=epics.some(e=>IP_S.includes(e.status));
+  const adjFraction=ipAdjPct/100;
+  const pct=total?Math.round((done/total+adjFraction)*1000)/10:0;
+  const equivPts=total?Math.round(total*adjFraction*10)/10:0;
+
   localStorage.setItem(LS_EPIC_PCT, pct);
-  // Refresh dashboard card immediately
   const epicPctEl=document.getElementById('dc-epicpct');
   if(epicPctEl){epicPctEl.textContent=pct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
+
   const changes=epics.filter(e=>{const b=BASELINE.find(x=>x.key===e.key);return b&&b.status!==e.status;});
+
   document.getElementById('e-out').innerHTML=`
-    ${[['Done pts',done,''],['Total pts',total,''],['IP adj.',ipAdj+'%',''],['% Complete',pct+'%','font-size:22px;color:#1e6e3a']].map(([l,v,s])=>`<div class="pct-row"><span style="font-size:13px;color:#555">${l}</span><span style="font-size:18px;font-weight:500;${s}">${v}</span></div>`).join('')}
-    <div class="mono" id="epct" style="margin-top:8px">Done\t${done}\nTotal\t${total}\nIP 2%\t${ipAdj}%\nPercent Complete\t${pct}%</div>
+    <div class="pct-row"><span style="font-size:13px;color:#555">Done pts</span><span style="font-size:18px;font-weight:500">${done}</span></div>
+    <div class="pct-row"><span style="font-size:13px;color:#555">Total pts</span><span style="font-size:18px;font-weight:500">${total}</span></div>
+    <div class="pct-row" style="align-items:center">
+      <span style=\"font-size:13px;color:#555\">IP adj.${hasIP?'':' <span style=\"color:#aaa\">(no In Progress epics)</span>'}</span>
+      <span style="display:flex;align-items:center;gap:4px">
+        <input type="number" id="ip-adj-input" value="${ipAdjPct}" min="0" max="20" step="0.5" style="width:55px;font-size:14px;padding:3px 6px;border-radius:6px;border:1px solid #ddd;text-align:right" oninput="onIpAdjChange(this.value)">
+        <span style="font-size:14px;font-weight:500">%</span>
+      </span>
+    </div>
+    <p class="hint" id="ip-adj-hint" style="text-align:right;margin-top:-4px">${ipAdjPct}% ≈ ${equivPts} of ${total} total pts &middot; typical range 2&ndash;5%</p>
+    <div class="pct-row"><span style="font-size:13px;color:#555">% Complete</span><span style="font-size:22px;font-weight:500;color:#1e6e3a">${pct}%</span></div>
+
+    <div class="mono" id="epct" style="margin-top:8px">Done\t${done}\nTotal\t${total}\nIP ${ipAdjPct}%\t${ipAdjPct}%\nPercent Complete\t${pct}%</div>
     <button class="btn" style="margin-top:6px" onclick="cp('epct')">Copy</button>
     ${changes.length?`<p class="sec" style="margin-top:1rem">${changes.length} status change(s) — update % Complete tab in spreadsheet</p>
     <div style="border:1px solid #eee;border-radius:8px;overflow:hidden"><table class="etable"><thead><tr><th>Key</th><th>Epic</th><th>Was</th><th>Now</th><th>Pts</th></tr></thead>
     <tbody>${changes.map(e=>{const b=BASELINE.find(x=>x.key===e.key);const sc=DONE_S.includes(e.status)?'ok-b':IP_S.includes(e.status)?'warn-b':'info-b';return`<tr style="background:#fff8e1"><td style="font-size:11px;color:#888">${e.key}</td><td style="font-size:12px">${e.name.length>42?e.name.substring(0,42)+'...':e.name}</td><td style="font-size:11px;color:#888">${b.status}</td><td><span class="badge ${sc}">${e.status}</span></td><td>${e.pts}</td></tr>`;}).join('')}</tbody></table></div>`
     :'<p style="font-size:12px;color:#888;margin-top:8px">&#10003; No status changes vs. baseline.</p>'}`;
+}
+
+function onIpAdjChange(val){
+  const pct=parseFloat(val);
+  if(isNaN(pct)||pct<0)return;
+  renderEpicsWithAdj(pct);
+  // Restore focus to the input after re-render so typing isn't interrupted
+  setTimeout(()=>{const el=document.getElementById('ip-adj-input');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},0);
 }
 
 // ── INVOICE ─────────────────────────────────────────────────────────────────
