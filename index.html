@@ -278,7 +278,13 @@ input[type=file]{display:none}
 <div class="page" id="pg4">
   <div class="success-bar" id="inv-notice">&#10003; Invoice budget numbers auto-populated below &mdash; review before generating</div>
   <div class="frow"><span class="flbl">Project status</span><select id="e-status" onchange="toggleStatusNote()"><option value="On Track">On Track</option><option value="At Risk">At Risk</option><option value="Off Track">Off Track</option></select></div>
-  <div class="frow"><span class="flbl">Project % complete</span><div><input type="text" id="e-pct-complete" placeholder="e.g. 74.1"><p class="hint">Auto-fills from the Epic % complete tab — edit here if needed</p></div></div>
+  <div class="frow"><span class="flbl">Project % complete</span><div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="e-pct-complete" placeholder="e.g. 74.1" style="flex:1">
+      <button class="btn" style="font-size:11px;padding:4px 10px;white-space:nowrap" onclick="refreshPctComplete()">↻ Refresh from Epic tab</button>
+    </div>
+    <p class="hint" id="pct-complete-hint">Auto-fills on first open — click Refresh anytime after recalculating on the Epic % complete tab</p>
+  </div></div>
   <div id="status-note-row" style="display:none" class="frow"><span class="flbl">Why at risk / off track?</span><div><textarea id="e-status-note" rows="2" placeholder="Brief description — Claude writes the explanation and mitigation plan..."></textarea><p class="hint">e.g. "Sprint goals missed two sprints in a row due to scope creep on legacy bugs"</p></div></div>
   <div class="frow"><span class="flbl">Intro line</span><input type="text" id="e-intro" value="Good afternoon! Below are this week's updates:"></div>
   <div class="frow"><span class="flbl">Goal 1 &mdash; Consolidate &amp; Modernize</span><div><textarea id="e-g1" rows="3" placeholder="Features completed/in-progress, ticket themes..."></textarea></div></div>
@@ -294,9 +300,12 @@ input[type=file]{display:none}
     <p class="sec">Modernization Development</p>
     <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-mod-budget" value="$800,000"></div>
     <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-mod-actual" placeholder="e.g. $632,120"></div>
-    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-mod-remain" placeholder="e.g. $167,880"></div>
-    <div class="frow"><span class="flbl">Estimated to complete</span><input type="text" id="b-mod-etc" value="$212,880"></div>
-    <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$45,000"></div>
+    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-mod-remain" placeholder="e.g. $167,880" oninput="recalcModETC()"></div>
+    <div class="frow"><span class="flbl">Estimated to complete</span><div>
+      <input type="text" id="b-mod-etc" value="$212,880" readonly style="background:#eaf6ee;color:#1e6e3a;font-weight:500">
+      <p class="hint">Auto-calculated: Remaining + Projected Variance</p>
+    </div></div>
+    <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$45,000" oninput="recalcModETC()"></div>
   </div>
   <div class="frow"><span class="flbl">Risks</span><textarea id="e-risks" rows="2" placeholder="New risks or updates &mdash; leave blank for 'no new risks'"></textarea></div>
   <div class="frow"><span class="flbl">Next steps</span><div><textarea id="e-next" rows="3" placeholder="Upcoming work, UAT prep, releases..."></textarea><p class="hint">Claude writes as paragraph-style sentences</p></div></div>
@@ -343,6 +352,7 @@ function manageNavTo(n,btn){
   if(n===4){
     // Opening Weekly Email tab — always show latest known budget, invoice or not
     populateBudgetFromSaved();
+    recalcModETC();
   }
 }
 // Legacy alias used elsewhere
@@ -1024,7 +1034,30 @@ function populateBudgetFromInvoice(rows){
   document.getElementById('prev-leg').value=fmt$(newLeg);document.getElementById('prev-mod').value=fmt$(newMod);
   const setF=(id,val)=>{const el=document.getElementById(id);if(el){el.value=val;el.classList.add('autofilled');}};
   setF('b-leg-actual',fmt$(newLeg));setF('b-leg-remain',fmt$(legBudget-newLeg));setF('b-mod-actual',fmt$(newMod));setF('b-mod-remain',fmt$(modBudget-newMod));
+  recalcModETC();
   document.getElementById('e-budget-toggle').value='yes';document.getElementById('budget-fields').style.display='block';document.getElementById('inv-notice').style.display='block';
+}
+
+function refreshPctComplete(){
+  const pctEl=document.getElementById('e-pct-complete');
+  const saved=localStorage.getItem(LS_EPIC_PCT);
+  const hint=document.getElementById('pct-complete-hint');
+  if(!saved){
+    if(hint){hint.textContent='No value found yet — run the Epic % complete tab first.';hint.style.color='#c00';}
+    return;
+  }
+  pctEl.value=saved;
+  if(hint){
+    hint.textContent='✓ Refreshed from Epic % complete tab just now.';
+    hint.style.color='#1e6e3a';
+    setTimeout(()=>{hint.textContent='Auto-fills on first open — click Refresh anytime after recalculating on the Epic % complete tab';hint.style.color='';},3000);
+  }
+}
+
+function recalcModETC(){
+  const remain=parseFloat((document.getElementById('b-mod-remain').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const variance=parseFloat((document.getElementById('b-mod-var').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-mod-etc').value=fmt$(remain+variance);
 }
 
 function populateBudgetFromSaved(){
@@ -1049,6 +1082,7 @@ function populateBudgetFromSaved(){
   if(modActEl && !modActEl.value.trim()){
     modActEl.value=fmt$(prevMod);
     document.getElementById('b-mod-remain').value=fmt$(modBudget-prevMod);
+    recalcModETC();
   }
   // Show a subtle note so it's clear these are last-known totals, not necessarily this week's invoice
   const notice=document.getElementById('inv-notice');
