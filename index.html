@@ -960,10 +960,27 @@ async function loadInvFile(f){
   try{const ab=await f.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let txt='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const tc=await pg.getTextContent();txt+=tc.items.map(x=>x.str).join(' ')+'\n';}parseInvoice(txt);}
   catch(err){showErr('i-err','Could not read PDF: '+err.message);}
 }
+function monthNameToNum(s){
+  const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  const m=s.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s*(\d{4})/);
+  if(!m)return s;
+  const mon=months[m[1].toLowerCase().substring(0,3)]||1;
+  return String(mon).padStart(2,'0')+'/'+String(m[2]).padStart(2,'0')+'/'+m[3];
+}
+
 function parseInvoice(txt){
-  const invM=txt.match(/Invoice\s+ID\s+(\d+)/i)||txt.match(/Invoice\s+#?\s*(\d+)/i);const invNum=invM?invM[1]:'—';
-  const dateM=txt.match(/Issue\s+Date\s+([\d\/]+)/i);const invDate=dateM?dateM[1]:'—';
-  const rows=[];const re=/\[([^\]]+)\]\s+(.*?):?\s+([\w\s]+?)\s+\((\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\)\s+([\d.]+)\s+\$[\d,.]+\s+\$([\d,]+)/g;
+  // Invoice # — old format "Invoice ID 10000706", new format bare "Invoice 10000887"
+  const invM=txt.match(/Invoice\s+ID\s+(\d+)/i)||txt.match(/Invoice\s+(\d{6,})/i);
+  const invNum=invM?invM[1]:'—';
+
+  // Invoice date — old format "Issue Date MM/DD/YYYY", new format "Invoice date Mon DD, YYYY"
+  const dateOld=txt.match(/Issue\s+Date\s+([\d\/]+)/i);
+  const dateNew=txt.match(/Invoice date\s+([A-Za-z]{3,9}\s+\d{1,2},?\s*\d{4})/i);
+  const invDate=dateOld?dateOld[1]:(dateNew?monthNameToNum(dateNew[1]):'—');
+
+  // Line items — new format inserts a repeated "Product" name between the date range and Qty/Rate/Amount
+  const rows=[];
+  const re=/\[([^\]]+)\]\s+(.*?):?\s+([\w\s]+?)\s+\((\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\)\s+(?:[\w\s\-]+?\s+)?(\d+\.\d{2})\s+\$[\d,.]+\s+\$([\d,]+)/g;
   let m;while((m=re.exec(txt))!==null){const code=m[1].trim();rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,type:code.includes('CCA.11')?'MOD':'LEG',hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});}
   if(!rows.length){showErr('i-err','Could not parse line items — PDF text layer may not be readable.');return;}
 
