@@ -294,18 +294,18 @@ input[type=file]{display:none}
   <div class="frow"><span class="flbl">Include budget?</span><select id="e-budget-toggle" onchange="toggleBudget()"><option value="no">No &mdash; no new invoice this week</option><option value="yes">Yes &mdash; new invoice received</option></select></div>
   <div class="budget-box" id="budget-fields" style="display:none">
     <p class="sec" style="margin-top:0">Legacy Maintenance</p>
-    <div class="frow"><span class="flbl">FY26 budget total</span><input type="text" id="b-leg-budget" value="$85,000"></div>
-    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-leg-actual" placeholder="e.g. $33,800"></div>
+    <div class="frow"><span class="flbl">FY26 budget total</span><input type="text" id="b-leg-budget" value="$85,000" oninput="recalcLegRemain()"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-leg-actual" placeholder="e.g. $33,800" oninput="recalcLegRemain()"></div>
     <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-leg-remain" placeholder="e.g. $51,200"></div>
     <p class="sec">Modernization Development</p>
-    <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-mod-budget" value="$800,000"></div>
-    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-mod-actual" placeholder="e.g. $632,120"></div>
+    <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-mod-budget" value="$895,000" oninput="recalcModRemain()"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-mod-actual" placeholder="e.g. $632,120" oninput="recalcModRemain()"></div>
     <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-mod-remain" placeholder="e.g. $167,880" oninput="recalcModETC()"></div>
     <div class="frow"><span class="flbl">Estimated to complete</span><div>
-      <input type="text" id="b-mod-etc" value="$212,880" readonly style="background:#eaf6ee;color:#1e6e3a;font-weight:500">
+      <input type="text" id="b-mod-etc" value="$0" readonly style="background:#eaf6ee;color:#1e6e3a;font-weight:500">
       <p class="hint">Auto-calculated: Remaining + Projected Variance</p>
     </div></div>
-    <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$45,000" oninput="recalcModETC()"></div>
+    <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$0" oninput="recalcModETC()"></div>
   </div>
   <div class="frow"><span class="flbl">Risks</span><textarea id="e-risks" rows="2" placeholder="New risks or updates &mdash; leave blank for 'no new risks'"></textarea></div>
   <div class="frow"><span class="flbl">Next steps</span><div><textarea id="e-next" rows="3" placeholder="Upcoming work, UAT prep, releases..."></textarea><p class="hint">Claude writes as paragraph-style sentences</p></div></div>
@@ -362,6 +362,10 @@ function navTo(n,btn){manageNavTo(n,btn);}
 const LS_SPRINTS='ctso_sprints_v1';
 const LS_LEG='ctso_prev_leg';
 const LS_MOD='ctso_prev_mod';
+const LS_BUDGET='ctso_budget_settings';
+// Single source of truth for fallback values — only used when nothing is saved yet in this browser.
+// Update these whenever the approved budget changes.
+const BUDGET_DEFAULTS={legBudget:85000,modBudget:895000,modVar:0,legCost:76360,modCost:779800};
 const LS_LAST_SPRINT='ctso_last_parsed_sprint';
 const LS_PROCESSED_INV='ctso_processed_invoices';
 const LS_REPORTED='ctso_reported_items_v1'; // {sprintNumber: [ticket keys already mentioned in an email]}
@@ -1040,12 +1044,30 @@ function forceReprocessInvoice(invNum){
 }
 
 function fmt$(n){return '$'+Math.round(n).toLocaleString();}
-function loadSavedTotals(){const leg=localStorage.getItem(LS_LEG);const mod=localStorage.getItem(LS_MOD);if(leg)document.getElementById('prev-leg').value=leg;else document.getElementById('prev-leg').value='$30,360';if(mod)document.getElementById('prev-mod').value=mod;else document.getElementById('prev-mod').value='$613,920';}
+function loadSavedTotals(){
+  const leg=localStorage.getItem(LS_LEG);const mod=localStorage.getItem(LS_MOD);
+  document.getElementById('prev-leg').value=leg||fmt$(BUDGET_DEFAULTS.legCost);
+  document.getElementById('prev-mod').value=mod||fmt$(BUDGET_DEFAULTS.modCost);
+  loadBudgetSettings();
+}
+// Budget total + projected variance are remembered between sessions so they never silently revert
+function loadBudgetSettings(){
+  let st={};try{st=JSON.parse(localStorage.getItem(LS_BUDGET)||'{}');}catch(e){}
+  const d=BUDGET_DEFAULTS;
+  document.getElementById('b-leg-budget').value=fmt$(st.legBudget!=null?st.legBudget:d.legBudget);
+  document.getElementById('b-mod-budget').value=fmt$(st.modBudget!=null?st.modBudget:d.modBudget);
+  document.getElementById('b-mod-var').value=fmt$(st.modVar!=null?st.modVar:d.modVar);
+  recalcModETC();
+}
+function saveBudgetSettings(){
+  const num=id=>parseFloat((document.getElementById(id).value||'0').replace(/[^0-9.-]/g,''))||0;
+  localStorage.setItem(LS_BUDGET,JSON.stringify({legBudget:num('b-leg-budget'),modBudget:num('b-mod-budget'),modVar:num('b-mod-var')}));
+}
 function savePrevTotals(){const leg=document.getElementById('prev-leg').value.trim();const mod=document.getElementById('prev-mod').value.trim();if(leg)localStorage.setItem(LS_LEG,leg);if(mod)localStorage.setItem(LS_MOD,mod);}
 function populateBudgetFromInvoice(rows){
   const legAmt=rows.filter(r=>r.type==='LEG').reduce((s,r)=>s+r.amt,0);const modAmt=rows.filter(r=>r.type==='MOD').reduce((s,r)=>s+r.amt,0);
-  const prevLeg=parseFloat((document.getElementById('prev-leg').value||'$30,360').replace(/[^0-9.]/g,''))||0;const prevMod=parseFloat((document.getElementById('prev-mod').value||'$613,920').replace(/[^0-9.]/g,''))||0;
-  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||'85000').replace(/[^0-9.]/g,''))||85000;const modBudget=parseFloat((document.getElementById('b-mod-budget').value||'800000').replace(/[^0-9.]/g,''))||800000;
+  const prevLeg=parseFloat((document.getElementById('prev-leg').value||fmt$(BUDGET_DEFAULTS.legCost)).replace(/[^0-9.]/g,''))||0;const prevMod=parseFloat((document.getElementById('prev-mod').value||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
+  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||String(BUDGET_DEFAULTS.legBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.legBudget;const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
   const newLeg=prevLeg+legAmt,newMod=prevMod+modAmt;
   localStorage.setItem(LS_LEG,fmt$(newLeg));localStorage.setItem(LS_MOD,fmt$(newMod));
   document.getElementById('prev-leg').value=fmt$(newLeg);document.getElementById('prev-mod').value=fmt$(newMod);
@@ -1071,6 +1093,19 @@ function refreshPctComplete(){
   }
 }
 
+function recalcLegRemain(){
+  const budget=parseFloat((document.getElementById('b-leg-budget').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const actual=parseFloat((document.getElementById('b-leg-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-leg-remain').value=fmt$(budget-actual);
+}
+
+function recalcModRemain(){
+  const budget=parseFloat((document.getElementById('b-mod-budget').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const actual=parseFloat((document.getElementById('b-mod-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-mod-remain').value=fmt$(budget-actual);
+  recalcModETC();
+}
+
 function recalcModETC(){
   const remain=parseFloat((document.getElementById('b-mod-remain').value||'0').replace(/[^0-9.-]/g,''))||0;
   const variance=parseFloat((document.getElementById('b-mod-var').value||'0').replace(/[^0-9.-]/g,''))||0;
@@ -1085,10 +1120,10 @@ function populateBudgetFromSaved(){
     if(saved)pctEl.value=saved;
   }
   // Shows current running totals in the Email tab regardless of whether an invoice was uploaded this session
-  const prevLeg=parseFloat((localStorage.getItem(LS_LEG)||'$30,360').replace(/[^0-9.]/g,''))||0;
-  const prevMod=parseFloat((localStorage.getItem(LS_MOD)||'$613,920').replace(/[^0-9.]/g,''))||0;
-  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||'85000').replace(/[^0-9.]/g,''))||85000;
-  const modBudget=parseFloat((document.getElementById('b-mod-budget').value||'800000').replace(/[^0-9.]/g,''))||800000;
+  const prevLeg=parseFloat((localStorage.getItem(LS_LEG)||fmt$(BUDGET_DEFAULTS.legCost)).replace(/[^0-9.]/g,''))||0;
+  const prevMod=parseFloat((localStorage.getItem(LS_MOD)||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
+  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||String(BUDGET_DEFAULTS.legBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.legBudget;
+  const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
   const actEl=document.getElementById('b-leg-actual');
   // Only auto-fill if the field is currently empty — never clobber a manual edit or fresh invoice fill
   if(actEl && !actEl.value.trim()){
@@ -1292,6 +1327,9 @@ function showAddForm(){document.getElementById('f-sprint').value='';document.get
 // ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
   loadSavedTotals();
+  ['b-leg-budget','b-mod-budget','b-mod-var'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.addEventListener('input',saveBudgetSettings);
+  });
   renderDashboard();
   restoreLastSprint();
   renderProcessedHistory();
