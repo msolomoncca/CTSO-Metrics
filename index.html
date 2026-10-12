@@ -43,6 +43,7 @@ h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 .stat-banner{border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .stat-banner.met{background:#e8f5e9;color:#1b5e20}
 .stat-banner.notmet{background:#fff3e0;color:#e65100}
+.stat-banner.neutral{background:#eef2fb;color:#1a3a6b}
 .pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;flex-shrink:0}
 .pill.met{background:#2e7d32;color:#fff}
 .pill.notmet{background:#e65100;color:#fff}
@@ -172,8 +173,7 @@ input[type=file]{display:none}
     <!-- 5. Defect Rate -->
     <div class="chart-card">
       <h3>Code Quality vs. Value Add</h3>
-      <div class="goal-banner target">🎯 Goal: Stable or improving trend over time of 10% defect rate</div>
-      <div class="stat-banner" id="def-stat"><span class="pill">—</span><span id="def-txt">Loading...</span></div>
+      <div class="stat-banner neutral" id="def-stat"><span id="def-txt">Loading...</span></div>
       <div class="chart-wrap"><canvas id="chart-def"></canvas></div>
     </div>
 
@@ -211,8 +211,8 @@ input[type=file]{display:none}
         <th>Sprint</th><th>Release</th><th># Goals</th><th>Goals Achieved</th>
         <th>% Achieved</th><th>Goal % Target</th><th>SP Committed</th>
         <th>SP Done</th><th>% SP Complete</th><th>Cycle Time (days)</th>
-        <th>Lead Time (days)</th><th>Defects (pts)</th><th>Value (pts)</th>
-        <th>Defect Rate %</th>
+        <th>Lead Time (days)</th><th>Fixes &amp; Improvements (pts)</th><th>Value (pts)</th>
+        <th>Fix &amp; Improvement Rate %</th>
       </tr></thead>
       <tbody id="source-tbody"></tbody>
     </table>
@@ -234,10 +234,10 @@ input[type=file]{display:none}
       <div><p class="lbl">SP Done</p><input type="number" id="f-done"></div>
       <div><p class="lbl">Median Cycle Time (days)</p><input type="number" step="0.01" id="f-cycle"></div>
       <div><p class="lbl">Median Lead Time (days)</p><input type="number" step="0.01" id="f-lead"></div>
-      <div><p class="lbl">Defects (points)</p><input type="number" id="f-defects"></div>
+      <div><p class="lbl">Fixes &amp; Improvements (points)</p><input type="number" id="f-defects"></div>
       <div><p class="lbl">Value (points)</p><input type="number" id="f-value"></div>
     </div>
-    <p class="hint" style="margin-top:8px">% Achieved, % SP Complete, and Defect Rate calculate automatically</p>
+    <p class="hint" style="margin-top:8px">% Achieved, % SP Complete, and Fix &amp; Improvement Rate calculate automatically</p>
     <div style="margin-top:12px;display:flex;gap:8px">
       <button class="btn-primary btn" onclick="saveSprint()">Save sprint</button>
       <button class="btn" onclick="document.getElementById('add-form').style.display='none'">Cancel</button>
@@ -363,6 +363,9 @@ const LS_SPRINTS='ctso_sprints_v1';
 const LS_LEG='ctso_prev_leg';
 const LS_MOD='ctso_prev_mod';
 const LS_BUDGET='ctso_budget_settings';
+// How ticket types roll up into the two sprint metrics — change here to redefine.
+const FIX_TYPES=['Defect','Incident','Scope Change'];   // shown as "Fixes & Improvements"
+const VALUE_TYPES=['Story','Spike'];
 // Single source of truth for fallback values — only used when nothing is saved yet in this browser.
 // Update these whenever the approved budget changes.
 const BUDGET_DEFAULTS={legBudget:85000,modBudget:895000,modVar:0,legCost:76360,modCost:779800};
@@ -489,7 +492,7 @@ function renderDashboard(){
   // ── Source table — inline editable ────────────────────────────────────────
   const tbody=document.getElementById('source-tbody');
   const EDITABLE=['release','goals','goalsmet','committed','done','cycle','lead','defects','value'];
-  const LABELS={release:'Release',goals:'# Goals',goalsmet:'Goals Achieved',committed:'SP Committed',done:'SP Done',cycle:'Cycle Time',lead:'Lead Time',defects:'Defects (pts)',value:'Value (pts)'};
+  const LABELS={release:'Release',goals:'# Goals',goalsmet:'Goals Achieved',committed:'SP Committed',done:'SP Done',cycle:'Cycle Time',lead:'Lead Time',defects:'Fixes & Improvements (pts)',value:'Value (pts)'};
 
   tbody.innerHTML=data.map((d,i)=>{
     const dd=derived(d);
@@ -548,9 +551,8 @@ function renderDashboard(){
 
   // ── 5. Defect Rate (bar) ───────────────────────────────────────────────────
   const a3def=avg3(data,'defRate');
-  statBanner('def-stat','def-txt',a3def<=10,
-    `${a3def}% average defect rate over last 3 sprints`+(a3def<=10?' — on target':' — above 10% goal'));
-  chartInstances.def=makeBarChart('chart-def',labels,data.map(d=>d.defRate),'% of Defects');
+  document.getElementById('def-txt').textContent=`${a3def}% average fix & improvement rate over last 3 sprints`;
+  chartInstances.def=makeBarChart('chart-def',labels,data.map(d=>d.defRate),'% Fixes & Improvements');
 
   // ── 6. Median Lead Time (line) ─────────────────────────────────────────────
   const a3mlt=avg3(data,'lead');
@@ -693,8 +695,8 @@ function runParse(){
     const compPts=S_PARSED.completed.reduce((s,i)=>s+(i.points||0),0);
     const committed=S_PARSED.pts_start;
     const issuesForMetrics=[...S_PARSED.completed, ...(S_PARSED.incomplete||[])];
-    const defPts=issuesForMetrics.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
-    const valPts=issuesForMetrics.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+    const defPts=issuesForMetrics.filter(i=>FIX_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+    const valPts=issuesForMetrics.filter(i=>VALUE_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
     document.getElementById('f-sprint').value=S_PARSED.sprint_number;
     document.getElementById('f-goals').value=S_PARSED.goals.length;
     document.getElementById('f-committed').value=committed;
@@ -727,7 +729,7 @@ function restoreLastSprint(){
 }
 
 function startNewSprint(){
-  if(!confirm('This clears the saved sprint context (goals, defect/value points, committed/done) used to pre-fill the Email tab. Your saved Dashboard history is NOT affected. Continue?'))return;
+  if(!confirm('This clears the saved sprint context (goals, fix & improvement/value points, committed/done) used to pre-fill the Email tab. Your saved Dashboard history is NOT affected. Continue?'))return;
   S_PARSED=null;
   CURRENT_NEW_KEYS=[];
   localStorage.removeItem(LS_LAST_SPRINT);
@@ -806,8 +808,8 @@ function renderSprint(p){
   const rollover=Math.max(0,committed-removed-compPts);
   // Use completed issues for defect/value; fall back to incomplete if sprint still active
   const issuesForMetrics=[...p.completed, ...(p.incomplete||[])];
-  const defPts=issuesForMetrics.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
-  const valPts=issuesForMetrics.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+  const defPts=issuesForMetrics.filter(i=>FIX_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+  const valPts=issuesForMetrics.filter(i=>VALUE_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
   const valAdd=(defPts+valPts)>0?Math.round(valPts/(defPts+valPts)*100):0;
   const gc=p.goals.length;
   document.getElementById('s-out').innerHTML=`
@@ -821,7 +823,7 @@ function renderSprint(p){
     </div>
     <div id="sv0">
       <div class="grid-cards">
-        ${[['Sprint #',p.sprint_number||'','number','m0'],['Release #','Release 1.4','text','m1'],['# Goals',gc,'number','m2'],['Goals achieved','','number','m3'],['SP committed',committed,'number','m4'],['SP done',compPts,'number','m5'],['Added',added,'number','m6'],['Removed',removed,'number','m7'],['Defects (pts)',defPts,'number','m8'],['Value (pts)',valPts,'number','m9'],['Cycle time','','number','m10'],['Lead time','','number','m11']].map(([l,v,t,id])=>`<div class="card"><p class="lbl">${l}</p><input type="${t}" id="${id}" value="${v}" placeholder="—" style="margin-top:4px"></div>`).join('')}
+        ${[['Sprint #',p.sprint_number||'','number','m0'],['Release #','Release 1.4','text','m1'],['# Goals',gc,'number','m2'],['Goals achieved','','number','m3'],['SP committed',committed,'number','m4'],['SP done',compPts,'number','m5'],['Added',added,'number','m6'],['Removed',removed,'number','m7'],['Fixes & Improvements (pts)',defPts,'number','m8'],['Value (pts)',valPts,'number','m9'],['Cycle time','','number','m10'],['Lead time','','number','m11']].map(([l,v,t,id])=>`<div class="card"><p class="lbl">${l}</p><input type="${t}" id="${id}" value="${v}" placeholder="—" style="margin-top:4px"></div>`).join('')}
       </div>
       <p style="font-size:11px;color:#888;margin-top:6px">Enter Cycle &amp; Lead time from Jira Control Chart, then click Save to Dashboard to update charts.</p>
       <button class="btn" style="margin-top:8px" onclick="saveFromSprintTab()">Save to Dashboard</button>
@@ -831,7 +833,7 @@ function renderSprint(p){
     </div>
     <div id="sv2" style="display:none">
       <p class="sec">Confluence metrics row</p>
-      <div class="mono" id="sc0">${['Sprint #:        Sprint '+(p.sprint_number||'??'),'Release #:       Release 1.4','# Sprint goals:  '+gc,'Goals achieved:  [tally goals tab]','% achieved:      [auto-calculates]','Goal % target:   80%','SP committed:    '+committed,'SP done:         '+compPts,'% SP complete:   '+Math.round(compPts/Math.max(committed,1)*100)+'%','Cycle time:      [enter above then save]','Defects (pts):   '+defPts,'Value (pts):     '+valPts,'Value add %:     '+valAdd+'%','Lead time:       [enter above then save]'].join('\n')}</div>
+      <div class="mono" id="sc0">${['Sprint #:        Sprint '+(p.sprint_number||'??'),'Release #:       Release 1.4','# Sprint goals:  '+gc,'Goals achieved:  [tally goals tab]','% achieved:      [auto-calculates]','Goal % target:   80%','SP committed:    '+committed,'SP done:         '+compPts,'% SP complete:   '+Math.round(compPts/Math.max(committed,1)*100)+'%','Cycle time:      [enter above then save]','Fixes & Improvements (pts): '+defPts,'Value (pts):     '+valPts,'Value add %:     '+valAdd+'%','Lead time:       [enter above then save]'].join('\n')}</div>
       <button class="btn" style="margin-top:6px" onclick="cp('sc0')">Copy</button>
       <p class="sec">Retro snapshot</p>
       <div class="mono" id="sc1">${['Started with:  '+p.pts_start+' pts','Added:         '+added+' pts','Removed:       '+removed+' pts','Completed:     '+compPts+' pts','Rolling over:  '+rollover+' pts'].join('\n')}</div>
