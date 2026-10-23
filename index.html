@@ -3,22 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Member Central Metrics Hub</title>
+<title>CTS/O Metrics Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#f0f0ed;color:#1a1a1a;padding:1rem;min-height:100vh}
 .container{max-width:1100px;margin:0 auto;background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 1px 6px rgba(0,0,0,.1)}
+h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 .tabs{display:flex;gap:6px;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;padding-bottom:1rem;flex-wrap:wrap}
 .manage-drawer{display:none;background:#f8f8f8;border:1px solid #e0e0e0;border-radius:10px;padding:14px 16px;margin-bottom:1.5rem;gap:8px;flex-wrap:wrap}
 .manage-drawer.open{display:flex}
 .manage-btn{font-size:12px;padding:5px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;transition:all .15s}
 .manage-btn:hover{background:#f0f0f0;color:#1a1a1a}
 .manage-btn.on{background:#1a3a6b;color:#fff;border-color:#1a3a6b}
+.tab{font-size:13px;padding:6px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;transition:all .15s}
+.tab:hover{background:#f5f5f5}
+.tab.on{background:#1a3a6b;color:#fff;font-weight:500;border-color:#1a3a6b}
+.page{display:none}.page.on{display:block}
 
+/* ── DASHBOARD ── */
 .metric-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem}
 .metric-card{background:#f8f8f8;border-radius:10px;padding:12px 14px;text-align:center;border-top:3px solid #1a3a6b}
+.metric-card.warn{border-top-color:#e05c2a}
 .metric-card .mc-val{font-size:26px;font-weight:600;color:#1a3a6b;margin:4px 0}
+.metric-card.warn .mc-val{color:#e05c2a}
 .metric-card .mc-lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.04em}
 .metric-card .mc-sub{font-size:11px;color:#aaa;margin-top:2px}
 .goals-box{background:#f0f4ff;border-radius:10px;padding:12px 16px;margin-bottom:1.5rem}
@@ -35,12 +43,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;ba
 .stat-banner{border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .stat-banner.met{background:#e8f5e9;color:#1b5e20}
 .stat-banner.notmet{background:#fff3e0;color:#e65100}
+.stat-banner.neutral{background:#eef2fb;color:#1a3a6b}
 .pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;flex-shrink:0}
 .pill.met{background:#2e7d32;color:#fff}
 .pill.notmet{background:#e65100;color:#fff}
 .chart-wrap{position:relative;height:200px}
-.empty-state{background:#f8f8f8;border-radius:10px;padding:2rem;text-align:center;color:#888;font-size:13px;margin-bottom:1.5rem}
 
+/* ── DATA TABLE ── */
 .data-table-wrap{overflow-x:auto;margin-top:1rem}
 table.data-tbl{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
 table.data-tbl th{background:#1a3a6b;color:#fff;padding:7px 10px;text-align:center;white-space:nowrap;font-weight:500}
@@ -51,12 +60,14 @@ table.data-tbl tr.current td{background:#fff8e1;font-weight:500}
 .editable-cell:hover{background:#e8f0fe;outline:1px dashed #4a7fd4}
 .editable-input{font-size:12px;padding:2px 6px;border:1.5px solid #1a3a6b;border-radius:4px;width:80px;text-align:center;background:#fff;font-family:inherit}
 
+/* ── SPRINT / EPIC / INVOICE / EMAIL (existing) ── */
 .card{background:#f8f8f8;border-radius:8px;padding:10px 14px;margin-bottom:6px}
 .lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .val{font-size:20px;font-weight:500}
 .grid-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:1rem}
 .sec{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:1rem 0 6px}
 .mono{background:#f8f8f8;border-radius:8px;padding:12px 14px;font-size:12px;font-family:'Courier New',monospace;white-space:pre-wrap;line-height:1.6;color:#1a1a1a}
+.draft{background:#f8f8f8;border-radius:8px;padding:14px 16px;font-size:13px;line-height:1.8;white-space:pre-wrap;color:#1a1a1a}
 .dz{border:1.5px dashed #ccc;border-radius:10px;padding:1rem;text-align:center;cursor:pointer;transition:background .15s}
 .dz:hover,.dz.drag{background:#f5f5f5}
 .dz.ok{border-style:solid;border-color:#2d7d46;background:#eaf6ee}
@@ -73,13 +84,18 @@ table.data-tbl tr.current td{background:#fff8e1;font-weight:500}
 .btn:hover{background:#f5f5f5}
 .btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:13px;padding:7px 20px}
 .btn-primary:hover{background:#333}
-textarea,input[type=text],input[type=number]{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;width:100%;font-family:inherit}
+.frow{display:grid;grid-template-columns:155px 1fr;gap:10px;align-items:start;margin-bottom:10px}
+.flbl{font-size:12px;font-weight:500;color:#555;padding-top:6px;line-height:1.3}
+textarea,input[type=text],input[type=number],select{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;color:#1a1a1a;width:100%;font-family:inherit}
 textarea{resize:vertical}
+input.autofilled{border-color:#2d7d46;background:#eaf6ee}
 .hint{font-size:11px;color:#888;margin-top:3px}
 .err{display:none;font-size:12px;color:#c00;margin-top:6px;padding:6px 10px;background:#fff0f0;border-radius:6px}
+.success-bar{display:none;font-size:12px;color:#1e6e3a;padding:8px 12px;background:#eaf6ee;border-radius:8px;margin-bottom:12px}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ddd;border-top-color:#888;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 input[type=file]{display:none}
+.budget-box{background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:10px}
 .stab-row{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
 </style>
 </head>
@@ -87,7 +103,7 @@ input[type=file]{display:none}
 <div class="container">
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;padding-bottom:1rem">
-  <h1 style="margin:0">Member Central Metrics Hub</h1>
+  <h1 style="margin:0">CTS/O Metrics Hub</h1>
   <button id="manage-btn-top" onclick="toggleManage(this)" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;display:flex;align-items:center;gap:5px">
     <span>⚙</span> <span id="manage-label">Manage</span>
   </button>
@@ -97,11 +113,13 @@ input[type=file]{display:none}
   <button class="manage-btn" id="mb1" onclick="manageNavTo(1,this)">Sprint report</button>
   <button class="manage-btn" id="mb2" onclick="manageNavTo(2,this)">Epic % complete</button>
   <button class="manage-btn" id="mb3" onclick="manageNavTo(3,this)">Invoice</button>
+  <button class="manage-btn" id="mb4" onclick="manageNavTo(4,this)">Weekly email</button>
   <button class="manage-btn" style="margin-left:auto;color:#999" onclick="manageNavTo(0,null)">← Back to Dashboard</button>
 </div>
 
 <!-- ══ DASHBOARD ══════════════════════════════════════════════════════════ -->
 <div class="page on" id="pg0">
+  <!-- Metric cards -->
   <div class="metric-cards" id="dash-cards">
     <div class="metric-card"><p class="mc-lbl">Sprint</p><p class="mc-val" id="dc-sprint">—</p></div>
     <div class="metric-card"><p class="mc-lbl">SP Committed</p><p class="mc-val" id="dc-committed">—</p></div>
@@ -111,55 +129,64 @@ input[type=file]{display:none}
     <div class="metric-card" id="dc-epicpct-card"><p class="mc-lbl">Project % Complete<p class="mc-sub">from epic CSV</p></p><p class="mc-val" id="dc-epicpct">—</p></div>
   </div>
 
+  <!-- Sprint goals -->
   <div class="goals-box" id="dash-goals-box" style="display:none">
     <h3>Sprint Goals</h3>
     <div class="goals-list" id="dash-goals-list"></div>
   </div>
 
-  <div id="dash-empty" class="empty-state">
-    No sprint data yet. Open <strong>Manage → Sprint report</strong> and paste your first sprint report to get started.
-  </div>
+  <!-- Charts 2-col grid -->
+  <div class="charts-grid">
 
-  <div id="dash-charts-wrap" style="display:none">
-    <div class="charts-grid">
-      <div class="chart-card">
-        <h3>Sprint Goal Completion Rate</h3>
-        <div class="goal-banner target">🎯 Goal: Achieve 80% Sprint Goal Completion</div>
-        <div class="stat-banner" id="gcr-stat"><span class="pill">—</span><span id="gcr-txt">Loading...</span></div>
-        <div class="chart-wrap"><canvas id="chart-gcr"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Sprint Commitment Reliability</h3>
-        <div class="goal-banner target">🎯 Goal: Achieve Sprint Commitment Reliability of 80% or higher</div>
-        <div class="stat-banner" id="scr-stat"><span class="pill">—</span><span id="scr-txt">Loading...</span></div>
-        <div class="chart-wrap"><canvas id="chart-scr"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Median Cycle Time</h3>
-        <div class="goal-banner target">🎯 Goal: Median cycle time/sprint of 6 days</div>
-        <div class="stat-banner" id="mct-stat"><span class="pill">—</span><span id="mct-txt">Loading...</span></div>
-        <div class="chart-wrap"><canvas id="chart-mct"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Average Velocity</h3>
-        <div class="goal-banner target">🎯 Goal: Stable or improving trend over time</div>
-        <div class="stat-banner" id="vel-stat"><span class="pill">—</span><span id="vel-txt">Loading...</span></div>
-        <div class="chart-wrap"><canvas id="chart-vel"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Code Quality vs. Value Add</h3>
-        <div class="goal-banner target">🎯 Goal: Stable or improving trend over time of 10% defect rate</div>
-        <div class="stat-banner" id="def-stat"><span class="pill">—</span><span id="def-txt">Loading...</span></div>
-        <div class="chart-wrap"><canvas id="chart-def"></canvas></div>
-      </div>
-      <div class="chart-card">
-        <h3>Median Lead Time</h3>
-        <div class="goal-banner target">🎯 Goal: Stable or improving trend over time of 30 days</div>
-        <div class="stat-banner" id="mlt-stat"><span class="pill">—</span><span id="mlt-txt">Loading...</span></div>
-        <div class="chart-wrap"><canvas id="chart-mlt"></canvas></div>
-      </div>
+    <!-- 1. Sprint Goal Completion Rate -->
+    <div class="chart-card">
+      <h3>Sprint Goal Completion Rate</h3>
+      <div class="goal-banner target">🎯 Goal: Achieve 80% Sprint Goal Completion</div>
+      <div class="stat-banner" id="gcr-stat"><span class="pill">—</span><span id="gcr-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-gcr"></canvas></div>
     </div>
-  </div>
+
+    <!-- 2. Sprint Commitment Reliability -->
+    <div class="chart-card">
+      <h3>Sprint Commitment Reliability</h3>
+      <div class="goal-banner target">🎯 Goal: Achieve Sprint Commitment Reliability of 80% or higher</div>
+      <div class="stat-banner" id="scr-stat"><span class="pill">—</span><span id="scr-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-scr"></canvas></div>
+    </div>
+
+    <!-- 3. Median Cycle Time -->
+    <div class="chart-card">
+      <h3>Median Cycle Time</h3>
+      <div class="goal-banner target">🎯 Goal: Median cycle time/sprint of 6 days</div>
+      <div class="stat-banner" id="mct-stat"><span class="pill">—</span><span id="mct-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-mct"></canvas></div>
+    </div>
+
+    <!-- 4. Average Velocity -->
+    <div class="chart-card">
+      <h3>Average Velocity</h3>
+      <div class="goal-banner target">🎯 Goal: Stable or improving trend over time</div>
+      <div class="stat-banner" id="vel-stat"><span class="pill">—</span><span id="vel-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-vel"></canvas></div>
+    </div>
+
+    <!-- 5. Defect Rate -->
+    <div class="chart-card">
+      <h3>Code Quality vs. Value Add</h3>
+      <div class="stat-banner neutral" id="def-stat"><span id="def-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-def"></canvas></div>
+    </div>
+
+    <!-- 6. Median Lead Time -->
+    <div class="chart-card">
+      <h3>Median Lead Time</h3>
+      <div class="goal-banner target">🎯 Goal: Stable or improving trend over time of 30 days</div>
+      <div class="stat-banner" id="mlt-stat"><span class="pill">—</span><span id="mlt-txt">Loading...</span></div>
+      <div class="chart-wrap"><canvas id="chart-mlt"></canvas></div>
+    </div>
+
+  </div><!-- /charts-grid -->
+
 </div>
 
 <!-- ══ SPRINT REPORT ══════════════════════════════════════════════════════ -->
@@ -172,8 +199,10 @@ input[type=file]{display:none}
   <button class="btn" style="margin-top:8px" onclick="runParse()">&#9654; Parse</button>
   <span id="parsed-indicator" style="display:none;font-size:11px;color:#1e6e3a;margin-left:8px">✓ Saved automatically — available until you start a new sprint</span>
   <div class="err" id="s-err"></div>
+  <div id="coverage-banner"></div>
   <div id="s-out" style="margin-top:1rem"></div>
 
+  <!-- Source data table -->
   <hr style="border:none;border-top:1px solid #eee;margin:1.5rem 0">
   <h3 style="font-size:13px;font-weight:600;margin-bottom:8px;color:#555;text-transform:uppercase;letter-spacing:.04em">Source Data — Sprint History</h3>
   <div class="data-table-wrap">
@@ -182,8 +211,8 @@ input[type=file]{display:none}
         <th>Sprint</th><th>Release</th><th># Goals</th><th>Goals Achieved</th>
         <th>% Achieved</th><th>Goal % Target</th><th>SP Committed</th>
         <th>SP Done</th><th>% SP Complete</th><th>Cycle Time (days)</th>
-        <th>Lead Time (days)</th><th>Defects (pts)</th><th>Value (pts)</th>
-        <th>Defect Rate %</th>
+        <th>Lead Time (days)</th><th>Fixes &amp; Improvements (pts)</th><th>Value (pts)</th>
+        <th>Fix &amp; Improvement Rate %</th>
       </tr></thead>
       <tbody id="source-tbody"></tbody>
     </table>
@@ -195,21 +224,22 @@ input[type=file]{display:none}
   </div>
   <div id="export-output" style="margin-top:10px"></div>
 
+  <!-- Add/edit form -->
   <div id="add-form" style="display:none;background:#f8f8f8;border-radius:10px;padding:16px;margin-top:1rem">
     <h3 style="font-size:13px;font-weight:600;margin-bottom:12px">Add / Update Sprint Data</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div><p class="lbl">Sprint #</p><input type="number" id="f-sprint" placeholder="1"></div>
-      <div><p class="lbl">Release</p><input type="text" id="f-release" placeholder="e.g. Release 1.0"></div>
+      <div><p class="lbl">Sprint #</p><input type="number" id="f-sprint" placeholder="27"></div>
+      <div><p class="lbl">Release</p><input type="text" id="f-release" placeholder="Release 1.4"></div>
       <div><p class="lbl"># Sprint Goals</p><input type="number" id="f-goals"></div>
       <div><p class="lbl">Goals Achieved</p><input type="number" id="f-goalsmet"></div>
       <div><p class="lbl">SP Committed</p><input type="number" id="f-committed"></div>
       <div><p class="lbl">SP Done</p><input type="number" id="f-done"></div>
       <div><p class="lbl">Median Cycle Time (days)</p><input type="number" step="0.01" id="f-cycle"></div>
       <div><p class="lbl">Median Lead Time (days)</p><input type="number" step="0.01" id="f-lead"></div>
-      <div><p class="lbl">Defects (points)</p><input type="number" id="f-defects"></div>
+      <div><p class="lbl">Fixes &amp; Improvements (points)</p><input type="number" id="f-defects"></div>
       <div><p class="lbl">Value (points)</p><input type="number" id="f-value"></div>
     </div>
-    <p class="hint" style="margin-top:8px">% Achieved, % SP Complete, and Defect Rate calculate automatically</p>
+    <p class="hint" style="margin-top:8px">% Achieved, % SP Complete, and Fix &amp; Improvement Rate calculate automatically</p>
     <div style="margin-top:12px;display:flex;gap:8px">
       <button class="btn-primary btn" onclick="saveSprint()">Save sprint</button>
       <button class="btn" onclick="document.getElementById('add-form').style.display='none'">Cancel</button>
@@ -231,14 +261,64 @@ input[type=file]{display:none}
 
 <!-- ══ INVOICE ════════════════════════════════════════════════════════════ -->
 <div class="page" id="pg3">
+  <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:1rem">
+    <p style="font-size:12px;font-weight:500;color:#555;margin-bottom:10px">Previous cost-to-date <span style="font-weight:400;color:#888">&mdash; saved automatically after each invoice</span></p>
+    <div class="frow"><span class="flbl">Legacy cost to date</span><div><input type="text" id="prev-leg" placeholder="e.g. $30,360" oninput="savePrevTotals()"><p class="hint">Running total before this invoice</p></div></div>
+    <div class="frow"><span class="flbl">Modernization cost to date</span><div><input type="text" id="prev-mod" placeholder="e.g. $613,920" oninput="savePrevTotals()"><p class="hint">Running total before this invoice</p></div></div>
+  </div>
   <div class="dz" id="dz-inv" onclick="document.getElementById('fi-i').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropInv(event)">
     <input type="file" id="fi-i" accept=".pdf" onchange="loadInvFile(this.files[0])">
     <p style="font-size:14px;font-weight:500;margin-bottom:4px">&#8593; Upload invoice PDF</p>
-    <p style="font-size:12px;color:#888">Extracts line items and groups them by contract code automatically</p>
+    <p style="font-size:12px;color:#888">ArchitectNow format &mdash; budget numbers auto-fill in the Email tab</p>
   </div>
   <div class="err" id="i-err"></div>
   <div id="i-out" style="margin-top:1rem"></div>
   <div id="processed-history" style="margin-top:1.5rem"></div>
+</div>
+
+<!-- ══ WEEKLY EMAIL ═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg4">
+  <div class="success-bar" id="inv-notice">&#10003; Invoice budget numbers auto-populated below &mdash; review before generating</div>
+  <div class="frow"><span class="flbl">Project status</span><select id="e-status" onchange="toggleStatusNote()"><option value="On Track">On Track</option><option value="At Risk">At Risk</option><option value="Off Track">Off Track</option></select></div>
+  <div class="frow"><span class="flbl">Project % complete</span><div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="e-pct-complete" placeholder="e.g. 74.1" style="flex:1">
+      <button class="btn" style="font-size:11px;padding:4px 10px;white-space:nowrap" onclick="refreshPctComplete()">↻ Refresh from Epic tab</button>
+    </div>
+    <p class="hint" id="pct-complete-hint">Auto-fills on first open — click Refresh anytime after recalculating on the Epic % complete tab</p>
+  </div></div>
+  <div id="status-note-row" style="display:none" class="frow"><span class="flbl">Why at risk / off track?</span><div><textarea id="e-status-note" rows="2" placeholder="Brief description — Claude writes the explanation and mitigation plan..."></textarea><p class="hint">e.g. "Sprint goals missed two sprints in a row due to scope creep on legacy bugs"</p></div></div>
+  <div class="frow"><span class="flbl">Intro line</span><input type="text" id="e-intro" value="Good afternoon! Below are this week's updates:"></div>
+  <div class="frow"><span class="flbl">Goal 1 &mdash; Consolidate &amp; Modernize</span><div><textarea id="e-g1" rows="3" placeholder="Features completed/in-progress, ticket themes..."></textarea></div></div>
+  <div class="frow"><span class="flbl">Goal 2 &mdash; End-User Experience</span><textarea id="e-g2" rows="2" placeholder="UAT status, UX improvements... Leave blank to omit."></textarea></div>
+  <div class="frow"><span class="flbl">Goal 3 &mdash; Operational Efficiency</span><textarea id="e-g3" rows="2" placeholder="Tooling, process improvements... Leave blank to omit."></textarea></div>
+  <div class="frow"><span class="flbl">Goal 4 &mdash; Reliability &amp; Visibility</span><textarea id="e-g4" rows="2" placeholder="Azure, monitoring, integrations... Leave blank to omit."></textarea></div>
+  <div class="frow"><span class="flbl">Include budget?</span><select id="e-budget-toggle" onchange="toggleBudget()"><option value="no">No &mdash; no new invoice this week</option><option value="yes">Yes &mdash; new invoice received</option></select></div>
+  <div class="budget-box" id="budget-fields" style="display:none">
+    <p class="sec" style="margin-top:0">Legacy Maintenance</p>
+    <div class="frow"><span class="flbl">FY26 budget total</span><input type="text" id="b-leg-budget" value="$85,000" oninput="recalcLegRemain()"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-leg-actual" placeholder="e.g. $33,800" oninput="recalcLegRemain()"></div>
+    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-leg-remain" placeholder="e.g. $51,200"></div>
+    <p class="sec">Modernization Development</p>
+    <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-mod-budget" value="$895,000" oninput="recalcModRemain()"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-mod-actual" placeholder="e.g. $632,120" oninput="recalcModRemain()"></div>
+    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-mod-remain" placeholder="e.g. $167,880" oninput="recalcModETC()"></div>
+    <div class="frow"><span class="flbl">Estimated to complete</span><div>
+      <input type="text" id="b-mod-etc" value="$0" readonly style="background:#eaf6ee;color:#1e6e3a;font-weight:500">
+      <p class="hint">Auto-calculated: Remaining + Projected Variance</p>
+    </div></div>
+    <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$0" oninput="recalcModETC()"></div>
+  </div>
+  <div class="frow"><span class="flbl">Risks</span><textarea id="e-risks" rows="2" placeholder="New risks or updates &mdash; leave blank for 'no new risks'"></textarea></div>
+  <div class="frow"><span class="flbl">Next steps</span><div><textarea id="e-next" rows="3" placeholder="Upcoming work, UAT prep, releases..."></textarea><p class="hint">Claude writes as paragraph-style sentences</p></div></div>
+  <div class="frow"><span class="flbl">Other notes</span><textarea id="e-other" rows="2" placeholder="Demo this week? Release? Tone adjustments?"></textarea></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="copyForClaude()">📋 Copy for Claude</button>
+    <button class="btn" onclick="generateEmail()" title="Requires this page to be hosted with a working API connection — often fails on static hosting">&#10024; Try in-app generate</button>
+  </div>
+  <p class="hint" style="margin-top:6px">Copy for Claude formats everything below into plain text — paste it into a Claude chat and ask for the email draft.</p>
+  <div class="err" id="eg-err"></div>
+  <div id="eg-out" style="margin-top:1.25rem"></div>
 </div>
 
 </div><!-- /container -->
@@ -246,8 +326,6 @@ input[type=file]{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-const isEmbedded=(function(){try{return window.self!==window.top;}catch(e){return true;}})();
 
 // ── NAV ────────────────────────────────────────────────────────────────────
 function toggleManage(btn){
@@ -257,6 +335,7 @@ function toggleManage(btn){
     drawer.classList.remove('open');
     document.getElementById('manage-label').textContent='Manage';
     document.querySelectorAll('.manage-btn').forEach(b=>b.className='manage-btn');
+    // Go back to dashboard
     document.querySelectorAll('.page').forEach((p,i)=>p.className='page'+(i===0?' on':''));
   } else {
     drawer.classList.add('open');
@@ -268,34 +347,61 @@ function manageNavTo(n,btn){
   document.querySelectorAll('.manage-btn').forEach(b=>b.className='manage-btn');
   if(btn) btn.className='manage-btn on';
   if(n===0){
+    // closing back to dashboard — close the drawer too
     document.getElementById('manage-drawer').classList.remove('open');
     document.getElementById('manage-label').textContent='Manage';
   }
+  if(n===4){
+    // Opening Weekly Email tab — always show latest known budget, invoice or not
+    populateBudgetFromSaved();
+    recalcModETC();
+  }
 }
+// Legacy alias used elsewhere
+function navTo(n,btn){manageNavTo(n,btn);}
 
 // ── SPRINT DATA STORE (localStorage) ──────────────────────────────────────
-const LS_SPRINTS='mc_sprints_v1';
-const LS_EPIC_PCT='mc_epic_pct';
-const LS_EPIC_BASELINE='mc_epic_baseline_v1';
-const LS_LAST_SPRINT='mc_last_parsed_sprint';
-const LS_PROCESSED_INV='mc_processed_invoices';
-const LS_REPORTED='mc_reported_items_v1';
-let CURRENT_NEW_KEYS=[];
+const LS_SPRINTS='ctso_sprints_v1';
+const LS_LEG='ctso_prev_leg';
+const LS_MOD='ctso_prev_mod';
+const LS_BUDGET='ctso_budget_settings';
+// How ticket types roll up into the two sprint metrics — change here to redefine.
+const FIX_TYPES=['Defect','Incident','Scope Change'];   // shown as "Fixes & Improvements"
+const VALUE_TYPES=['Story','Spike'];
+// Single source of truth for fallback values — only used when nothing is saved yet in this browser.
+// Update these whenever the approved budget changes.
+const BUDGET_DEFAULTS={legBudget:85000,modBudget:895000,modVar:0,legCost:76360,modCost:779800};
+const LS_LAST_SPRINT='ctso_last_parsed_sprint';
+const LS_PROCESSED_INV='ctso_processed_invoices';
+const LS_REPORTED='ctso_reported_items_v1'; // {sprintNumber: [ticket keys already mentioned in an email]}
+let CURRENT_NEW_KEYS=[]; // keys newly completed since last email, set after each parse
+const LS_EPIC_PCT='ctso_epic_pct';
 
-const SEED=[]; // Member Central starts blank — no historical sprints yet
+// Seed data: sprints 21-27
+const SEED=[
+  {sprint:21,release:'Phase 1 release',goals:2,goalsmet:1,committed:47,done:28,cycle:5,    lead:73.9,  defects:12,value:12},
+  {sprint:22,release:'Phase 1 release',goals:3,goalsmet:1,committed:53,done:35,cycle:19.54,lead:89.83, defects:1, value:31},
+  {sprint:23,release:'Phase 1 release',goals:5,goalsmet:5,committed:45,done:45,cycle:7.025,lead:46.83, defects:16,value:32},
+  {sprint:24,release:'Release 1.1',    goals:2,goalsmet:2,committed:42,done:44,cycle:1.916,lead:3.875, defects:30,value:26},
+  {sprint:25,release:'Release 1.2',    goals:2,goalsmet:2,committed:37,done:46,cycle:1.96, lead:16.375,defects:10,value:34},
+  {sprint:26,release:'Release 1.3',    goals:3,goalsmet:3,committed:39,done:31,cycle:4.66, lead:36.375,defects:9, value:30},
+  {sprint:27,release:'Release 1.4',    goals:4,goalsmet:4,committed:47,done:45,cycle:3.25, lead:38.2,  defects:17,value:24},
+];
+
+const isEmbedded=(function(){try{return window.self!==window.top;}catch(e){return true;}})();
 
 function loadSprints(){
   if(isEmbedded){
-    try{
-      const raw=localStorage.getItem(LS_SPRINTS);
-      if(raw){const d=JSON.parse(raw);if(d&&d.length)return d;}
-    }catch(e){}
+    // Embedded (e.g. Confluence iframe): browsers give iframes a separate, isolated storage bucket even on the
+    // same URL, so edits made on the site itself never reach here. Show the deliberately "published" SEED snapshot.
     return SEED;
   }
   try{
     const raw=localStorage.getItem(LS_SPRINTS);
     if(raw){const d=JSON.parse(raw);if(d&&d.length)return d;}
   }catch(e){}
+  // First load — seed with historical data
+  localStorage.setItem(LS_SPRINTS,JSON.stringify(SEED));
   return SEED;
 }
 function saveSprints(data){localStorage.setItem(LS_SPRINTS,JSON.stringify(data));}
@@ -307,6 +413,7 @@ function derived(s){
   return{...s,pctAchieved,pctSP,defRate};
 }
 
+// ── CHART PALETTE ──────────────────────────────────────────────────────────
 const BLUE='#2d5fa6';
 const BLUE_T='rgba(45,95,166,0.8)';
 const TARGET_LINE='rgba(173,216,230,0.9)';
@@ -320,147 +427,176 @@ function makeLineChart(id,labels,datasets,yLabel){
     options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{mode:'index',intersect:false}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}},title:{display:!!yLabel,text:yLabel,font:{size:10}}}}
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}},title:{display:!!yLabel,text:yLabel,font:{size:10}}}
+      }
     }
   });
 }
+
 function makeBarChart(id,labels,data,yLabel){
   const ctx=document.getElementById(id);
   if(!ctx)return;
   return new Chart(ctx,{
     type:'bar',
     data:{labels,datasets:[{label:yLabel||'',data,backgroundColor:BLUE_T,borderColor:BLUE,borderWidth:1,borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}}}}}
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10}}},
+        y:{grid:{color:'#f0f0f0'},ticks:{font:{size:10}}}
+      }
+    }
   });
 }
+
 let chartInstances={};
 function destroyCharts(){Object.values(chartInstances).forEach(c=>{try{c.destroy();}catch(e){}});chartInstances={};}
-function avg3(arr,key){const last3=arr.slice(-3);return Math.round(last3.reduce((s,x)=>s+(x[key]||0),0)/last3.length*10)/10;}
+
+function avg3(arr,key){
+  const last3=arr.slice(-3);
+  return Math.round(last3.reduce((s,x)=>s+(x[key]||0),0)/last3.length*10)/10;
+}
+
 function statBanner(elId,txtId,met,text){
-  const el=document.getElementById(elId);const pill=el.querySelector('.pill');const txt=document.getElementById(txtId);
-  el.className='stat-banner '+(met?'met':'notmet');pill.className='pill '+(met?'met':'notmet');pill.textContent=met?'GOAL MET':'GOAL NOT MET';txt.textContent=text;
+  const el=document.getElementById(elId);
+  const pill=el.querySelector('.pill');
+  const txt=document.getElementById(txtId);
+  el.className='stat-banner '+(met?'met':'notmet');
+  pill.className='pill '+(met?'met':'notmet');
+  pill.textContent=met?'GOAL MET':'GOAL NOT MET';
+  txt.textContent=text;
 }
 
 function renderDashboard(){
   const raw=loadSprints();
-  if(!raw.length){
-    document.getElementById('dash-empty').style.display='block';
-    document.getElementById('dash-charts-wrap').style.display='none';
-    ['dc-sprint','dc-committed','dc-done','dc-goals','dc-avgvel'].forEach(id=>document.getElementById(id).textContent='—');
-    const savedPct=localStorage.getItem(LS_EPIC_PCT);
-    document.getElementById('dc-epicpct').textContent=savedPct?savedPct+'%':'—';
-    return;
-  }
-  document.getElementById('dash-empty').style.display='none';
-  document.getElementById('dash-charts-wrap').style.display='block';
-
   const data=raw.map(derived);
   const labels=data.map(d=>'Sprint '+d.sprint);
   const latest=data[data.length-1];
 
+  // ── Metric cards ──────────────────────────────────────────────────────────
   document.getElementById('dc-sprint').textContent='Sprint '+latest.sprint;
   document.getElementById('dc-committed').textContent=latest.committed;
   document.getElementById('dc-done').textContent=latest.done;
   document.getElementById('dc-goals').textContent=latest.goalsmet+'/'+latest.goals;
   const avgVel=Math.round(data.slice(-3).reduce((s,d)=>s+d.done,0)/Math.min(3,data.length));
   document.getElementById('dc-avgvel').textContent=avgVel+' pts';
-
+  document.getElementById('dc-done-card').className='metric-card';
+  // Project % complete from epic CSV (localStorage)
   const savedEpicPct=localStorage.getItem(LS_EPIC_PCT);
   const epicPctEl=document.getElementById('dc-epicpct');
-  if(savedEpicPct){epicPctEl.textContent=savedEpicPct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
-  else{epicPctEl.textContent='—';epicPctEl.style.fontSize='16px';epicPctEl.style.color='#aaa';}
+  const epicPctCard=document.getElementById('dc-epicpct-card');
+  if(savedEpicPct){
+    epicPctEl.textContent=savedEpicPct+'%';
+    epicPctCard.className='metric-card';
+  } else {
+    epicPctEl.textContent='—';
+    epicPctEl.style.fontSize='16px';
+    epicPctEl.style.color='#aaa';
+    epicPctCard.title='Upload epic CSV on the Epic % complete tab to populate this';
+  }
 
+  // ── Source table — inline editable ────────────────────────────────────────
   const tbody=document.getElementById('source-tbody');
-  const editCell=(sprint,field,val,type='number',step='1')=>`<td><span class="editable-cell" data-sprint="${sprint}" data-field="${field}" data-type="${type}" data-step="${step}" title="Click to edit" onclick="startEdit(this)">${val}</span></td>`;
+  const EDITABLE=['release','goals','goalsmet','committed','done','cycle','lead','defects','value'];
+  const LABELS={release:'Release',goals:'# Goals',goalsmet:'Goals Achieved',committed:'SP Committed',done:'SP Done',cycle:'Cycle Time',lead:'Lead Time',defects:'Fixes & Improvements (pts)',value:'Value (pts)'};
+
   tbody.innerHTML=data.map((d,i)=>{
-    const dd=derived(d);const isCurrent=i===data.length-1;
-    return `<tr class="${isCurrent?'current':''}">
+    const dd=derived(d);
+    const isCurrent=i===data.length-1;
+    const rowCls=isCurrent?'current':'';
+    const editCell=(field,val,type='number',step='1')=>
+      `<td><span class="editable-cell" data-sprint="${d.sprint}" data-field="${field}" data-type="${type}" data-step="${step}" title="Click to edit" onclick="startEdit(this)">${val}</span></td>`;
+    return `<tr class="${rowCls}">
       <td>Sprint ${d.sprint}</td>
-      ${editCell(d.sprint,'release',d.release,'text','')}
-      ${editCell(d.sprint,'goals',d.goals)}
-      ${editCell(d.sprint,'goalsmet',d.goalsmet)}
-      <td>${dd.pctAchieved}%</td><td>80%</td>
-      ${editCell(d.sprint,'committed',d.committed)}
-      ${editCell(d.sprint,'done',d.done)}
+      ${editCell('release',d.release,'text','')}
+      ${editCell('goals',d.goals)}
+      ${editCell('goalsmet',d.goalsmet)}
+      <td>${dd.pctAchieved}%</td>
+      <td>80%</td>
+      ${editCell('committed',d.committed)}
+      ${editCell('done',d.done)}
       <td>${dd.pctSP}%</td>
-      ${editCell(d.sprint,'cycle',d.cycle,'number','0.001')}
-      ${editCell(d.sprint,'lead',d.lead,'number','0.001')}
-      ${editCell(d.sprint,'defects',d.defects)}
-      ${editCell(d.sprint,'value',d.value)}
+      ${editCell('cycle',d.cycle,'number','0.001')}
+      ${editCell('lead',d.lead,'number','0.001')}
+      ${editCell('defects',d.defects)}
+      ${editCell('value',d.value)}
       <td>${dd.defRate}%</td>
     </tr>`;
   }).join('');
 
   destroyCharts();
+
+  // ── 1. Sprint Goal Completion Rate (line) ──────────────────────────────────
   const a3gcr=avg3(data,'pctAchieved');
-  statBanner('gcr-stat','gcr-txt',a3gcr>=80,`Average Sprint Goal Completion over last 3 sprints: ${a3gcr}%`);
+  statBanner('gcr-stat','gcr-txt',a3gcr>=80,
+    `Average Sprint Goal Completion over last 3 sprints: ${a3gcr}%`);
   chartInstances.gcr=makeLineChart('chart-gcr',labels,[
     {label:'% Achieved',data:data.map(d=>d.pctAchieved),borderColor:BLUE,backgroundColor:'transparent',pointBackgroundColor:BLUE,tension:.3,pointRadius:4},
     {label:'Goal % Achieved',data:data.map(()=>80),borderColor:TARGET_LINE,backgroundColor:'transparent',borderDash:[5,5],pointRadius:0,tension:0}
   ]);
+
+  // ── 2. Sprint Commitment Reliability (bar) ─────────────────────────────────
   const a3scr=avg3(data,'pctSP');
-  statBanner('scr-stat','scr-txt',a3scr>=80,`Average % story points completed over last 3 sprints: ${a3scr}%`);
+  statBanner('scr-stat','scr-txt',a3scr>=80,
+    `Average % story points completed over last 3 sprints: ${a3scr}%`);
   chartInstances.scr=makeBarChart('chart-scr',labels,data.map(d=>d.pctSP),'% Story Points Completed');
+
+  // ── 3. Median Cycle Time (line) ────────────────────────────────────────────
   const a3mct=avg3(data,'cycle');
-  statBanner('mct-stat','mct-txt',a3mct<=6,`Median cycle time for last 3 sprints averaged ${a3mct} days`+(a3mct<=6?', on target':' — above 6-day goal'));
+  statBanner('mct-stat','mct-txt',a3mct<=6,
+    `Median cycle time for last 3 sprints averaged ${a3mct} days`+(a3mct<=6?', on target':' — above 6-day goal'));
   chartInstances.mct=makeLineChart('chart-mct',labels,[
     {label:'Median Cycle Time (days)',data:data.map(d=>d.cycle),borderColor:BLUE,backgroundColor:'transparent',pointBackgroundColor:BLUE,tension:.3,pointRadius:4},
     {label:'Goal (6 days)',data:data.map(()=>6),borderColor:TARGET_LINE,backgroundColor:'transparent',borderDash:[5,5],pointRadius:0}
   ]);
+
+  // ── 4. Average Velocity (bar) ──────────────────────────────────────────────
   const trend=data.length>=2&&data[data.length-1].done>=data[data.length-2].done;
   statBanner('vel-stat','vel-txt',trend,'Team is '+(trend?'improving':'declining')+' over time');
   chartInstances.vel=makeBarChart('chart-vel',labels,data.map(d=>d.done),'Velocity (Points)');
+
+  // ── 5. Defect Rate (bar) ───────────────────────────────────────────────────
   const a3def=avg3(data,'defRate');
-  statBanner('def-stat','def-txt',a3def<=10,`${a3def}% average defect rate over last 3 sprints`+(a3def<=10?' — on target':' — above 10% goal'));
-  chartInstances.def=makeBarChart('chart-def',labels,data.map(d=>d.defRate),'% of Defects');
+  document.getElementById('def-txt').textContent=`${a3def}% average fix & improvement rate over last 3 sprints`;
+  chartInstances.def=makeBarChart('chart-def',labels,data.map(d=>d.defRate),'% Fixes & Improvements');
+
+  // ── 6. Median Lead Time (line) ─────────────────────────────────────────────
   const a3mlt=avg3(data,'lead');
   const ltTrend=data.length>=2&&data[data.length-1].lead<=data[data.length-2].lead;
-  statBanner('mlt-stat','mlt-txt',ltTrend,`Median lead time for last 3 sprints averaged ${a3mlt} days`+(ltTrend?', improvement':' — trend increasing'));
+  statBanner('mlt-stat','mlt-txt',ltTrend,
+    `Median lead time for last 3 sprints averaged ${a3mlt} days`+(ltTrend?', improvement':' — trend increasing'));
   chartInstances.mlt=makeLineChart('chart-mlt',labels,[
     {label:'Median Lead Time (days)',data:data.map(d=>d.lead),borderColor:BLUE,backgroundColor:'transparent',pointBackgroundColor:BLUE,tension:.3,pointRadius:4},
     {label:'Goal (30 days)',data:data.map(()=>30),borderColor:TARGET_LINE,backgroundColor:'transparent',borderDash:[5,5],pointRadius:0}
   ]);
 }
 
-// ── INLINE EDIT ───────────────────────────────────────────────────────────
-function startEdit(span){
-  if(span.querySelector('input'))return;
-  const field=span.dataset.field;const sprint=parseInt(span.dataset.sprint);const type=span.dataset.type||'number';const step=span.dataset.step||'1';
-  const current=span.textContent.trim();
-  const input=document.createElement('input');input.className='editable-input';input.type=type;if(step)input.step=step;input.value=current;
-  input.style.width=type==='text'?'120px':'70px';
-  span.textContent='';span.appendChild(input);input.focus();input.select();
-  const commit=()=>commitEdit(span,sprint,field,type,input.value);
-  input.addEventListener('blur',commit);
-  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();commit();}if(e.key==='Escape'){renderDashboard();}});
-}
-function commitEdit(span,sprintNum,field,type,rawVal){
-  const val=type==='number'?parseFloat(rawVal)||0:rawVal.trim();
-  let data=loadSprints();const idx=data.findIndex(d=>d.sprint===sprintNum);if(idx<0)return;
-  const intFields=['goals','goalsmet','committed','done','defects','value'];
-  data[idx][field]=intFields.includes(field)?Math.round(val):val;
-  saveSprints(data);renderDashboard();
+function exportForPublishing(){
+  const data=loadSprints();
+  const lines=data.map(d=>`  {sprint:${d.sprint},release:${JSON.stringify(d.release)},goals:${d.goals},goalsmet:${d.goalsmet},committed:${d.committed},done:${d.done},cycle:${d.cycle},lead:${d.lead},defects:${d.defects},value:${d.value}},`);
+  const snippet='const SEED=[\n'+lines.join('\n')+'\n];';
+  const el=document.getElementById('export-output');
+  const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  navigator.clipboard.writeText(snippet).then(()=>{
+    el.innerHTML='<div style="background:#eaf6ee;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e6e3a;margin-bottom:8px">&#10003; Copied! Paste this to Claude and ask to "bake this into the SEED data" — the Confluence-embedded copy uses its own isolated browser storage and can only be updated this way.</div><div class="mono" style="white-space:pre-wrap;font-size:11px">'+esc(snippet)+'</div>';
+  }).catch(()=>{el.innerHTML='<div class="mono" style="white-space:pre-wrap;font-size:11px">'+esc(snippet)+'</div>';});
 }
 
 // ── ADD/EDIT FORM ──────────────────────────────────────────────────────────
-function exportForPublishing(){
-  const data=loadSprints();
-  const lines=data.map(d=>`  {sprint:${d.sprint},release:'${d.release}',goals:${d.goals},goalsmet:${d.goalsmet},committed:${d.committed},done:${d.done},cycle:${d.cycle},lead:${d.lead},defects:${d.defects},value:${d.value}},`);
-  const snippet='const SEED=[\n'+lines.join('\n')+'\n];';
-  const el=document.getElementById('export-output');
-  navigator.clipboard.writeText(snippet).then(()=>{
-    el.innerHTML=`<div style="background:#eaf6ee;border-radius:8px;padding:10px 14px;font-size:12px;color:#1e6e3a;margin-bottom:8px">&#10003; Copied! Paste this to Claude and ask to "bake this into the SEED data and republish" — the embedded copy uses its own isolated browser storage and can only be updated this way.</div><div class="mono" style="white-space:pre-wrap;font-size:11px">${snippet.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;
-  }).catch(()=>{el.innerHTML=`<div class="mono" style="white-space:pre-wrap;font-size:11px">${snippet.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`;});
-}
 function showAddForm(){
+  // Pre-fill with latest sprint + 1
   const data=loadSprints();
-  const nextSprint=data.length?data[data.length-1].sprint+1:1;
-  document.getElementById('f-sprint').value=nextSprint;
+  const latest=data[data.length-1];
+  document.getElementById('f-sprint').value=latest.sprint+1;
   document.getElementById('f-release').value='';
   ['f-goals','f-goalsmet','f-committed','f-done','f-cycle','f-lead','f-defects','f-value'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('add-form').style.display='block';
   document.getElementById('add-form').scrollIntoView({behavior:'smooth'});
 }
+
 function saveSprint(){
   const sprintNum=parseInt(document.getElementById('f-sprint').value);
   const release=document.getElementById('f-release').value.trim()||'—';
@@ -477,37 +613,68 @@ function saveSprint(){
   let data=loadSprints();
   const existing=data.findIndex(d=>d.sprint===sprintNum);
   const entry={sprint:sprintNum,release,goals,goalsmet,committed,done,cycle,lead,defects,value};
-  if(existing>=0)data[existing]=entry;else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
+  if(existing>=0) data[existing]=entry;
+  else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
   saveSprints(data);
   document.getElementById('add-form').style.display='none';
   renderDashboard();
-  if(S_PARSED&&S_PARSED.sprint_number===sprintNum)updateDashGoals();
+  // Also update metric cards with goals from sprint report if available
+  if(S_PARSED&&S_PARSED.sprint_number===sprintNum) updateDashGoals();
 }
 
 // ── SPRINT GOALS ON DASHBOARD ──────────────────────────────────────────────
 let S_PARSED=null;
 function updateDashGoals(){
-  if(!S_PARSED||!S_PARSED.goals||!S_PARSED.goals.length)return;
-  const box=document.getElementById('dash-goals-box');const list=document.getElementById('dash-goals-list');
+  if(!S_PARSED||!S_PARSED.goals||!S_PARSED.goals.length) return;
+  const box=document.getElementById('dash-goals-box');
+  const list=document.getElementById('dash-goals-list');
   list.innerHTML=S_PARSED.goals.map(g=>`<div class="goal-item">${g}</div>`).join('');
   box.style.display='block';
 }
 
-// ── SPRINT REPORT PARSING (generic — works with any Jira project key) ─────
-function getReportedItems(sprintNum){try{const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');return all[sprintNum]||[];}catch(e){return [];}}
-function addReportedItems(sprintNum,keys){try{const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');const existing=all[sprintNum]||[];all[sprintNum]=[...new Set([...existing,...keys])];localStorage.setItem(LS_REPORTED,JSON.stringify(all));}catch(e){}}
-function clearReportedItems(sprintNum){try{const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');delete all[sprintNum];localStorage.setItem(LS_REPORTED,JSON.stringify(all));}catch(e){}}
-function computeNewVsReported(p){
-  const sprintNum=p.sprint_number;const reported=getReportedItems(sprintNum);
-  const allCompletedKeys=p.completed.map(i=>i.key);const newKeys=allCompletedKeys.filter(k=>!reported.includes(k));
-  const alreadyCovered=p.completed.filter(i=>reported.includes(i.key));const newItems=p.completed.filter(i=>newKeys.includes(i.key));
-  CURRENT_NEW_KEYS=newKeys;return{newItems,alreadyCovered,reported,sprintNum};
+// ── SPRINT REPORT ──────────────────────────────────────────────────────────
+function getReportedItems(sprintNum){
+  try{
+    const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');
+    return all[sprintNum]||[];
+  }catch(e){return [];}
 }
+function addReportedItems(sprintNum, keys){
+  try{
+    const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');
+    const existing=all[sprintNum]||[];
+    all[sprintNum]=[...new Set([...existing, ...keys])];
+    localStorage.setItem(LS_REPORTED, JSON.stringify(all));
+  }catch(e){}
+}
+function clearReportedItems(sprintNum){
+  try{
+    const all=JSON.parse(localStorage.getItem(LS_REPORTED)||'{}');
+    delete all[sprintNum];
+    localStorage.setItem(LS_REPORTED, JSON.stringify(all));
+  }catch(e){}
+}
+
+function computeNewVsReported(p){
+  const sprintNum=p.sprint_number;
+  const reported=getReportedItems(sprintNum);
+  const allCompletedKeys=p.completed.map(i=>i.key);
+  const newKeys=allCompletedKeys.filter(k=>!reported.includes(k));
+  const alreadyCovered=p.completed.filter(i=>reported.includes(i.key));
+  const newItems=p.completed.filter(i=>newKeys.includes(i.key));
+  CURRENT_NEW_KEYS=newKeys;
+  return {newItems, alreadyCovered, reported, sprintNum};
+}
+
 function renderCoverageBanner(diff){
-  const el=document.getElementById('coverage-banner');if(!el)return;
-  if(diff.alreadyCovered.length===0){el.innerHTML='';return;}
+  const el=document.getElementById('coverage-banner');
+  if(!el)return;
+  if(diff.alreadyCovered.length===0){
+    el.innerHTML='';
+    return;
+  }
   el.innerHTML=`<div style="background:#e3f0fd;border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:12px;color:#1254a0">
-    <strong>${diff.alreadyCovered.length}</strong> completed item(s) were already covered in a previous update this sprint.
+    <strong>${diff.alreadyCovered.length}</strong> completed item(s) were already covered in a previous email this sprint and are excluded from the Email tab pre-fill.
     <strong>${diff.newItems.length}</strong> item(s) are new since the last update.
     <button class="btn" style="font-size:10px;padding:2px 8px;margin-left:8px;background:#fff" onclick="toggleCoverageDetail()">View details</button>
     <button class="btn" style="font-size:10px;padding:2px 8px;margin-left:4px;background:#fff;color:#c00" onclick="resetCoverageForSprint(${diff.sprintNum})">Reset (include all again)</button>
@@ -519,11 +686,18 @@ function renderCoverageBanner(diff){
     </div>
   </div>`;
 }
-function toggleCoverageDetail(){const d=document.getElementById('coverage-detail');if(d)d.style.display=d.style.display==='none'?'block':'none';}
+function toggleCoverageDetail(){
+  const d=document.getElementById('coverage-detail');
+  if(d)d.style.display=d.style.display==='none'?'block':'none';
+}
 function resetCoverageForSprint(sprintNum){
-  if(!confirm('This will treat all completed items in Sprint '+sprintNum+' as new again. Use this only if you need to re-include something. Continue?'))return;
+  if(!confirm('This will treat all completed items in Sprint '+sprintNum+' as new again, including ones already mentioned in a previous email. Use this only if you need to re-include something. Continue?'))return;
   clearReportedItems(sprintNum);
-  if(S_PARSED){const diff=computeNewVsReported(S_PARSED);renderCoverageBanner(diff);}
+  if(S_PARSED)  {
+    const diff=computeNewVsReported(S_PARSED);
+    renderCoverageBanner(diff);
+    preFillGoals(S_PARSED, diff.newItems);
+  }
 }
 
 function runParse(){
@@ -534,13 +708,15 @@ function runParse(){
   renderSprint(S_PARSED);
   const diff=computeNewVsReported(S_PARSED);
   renderCoverageBanner(diff);
+  preFillGoals(S_PARSED, diff.newItems);
   updateDashGoals();
+  // Auto-fill the add form with parsed data — uses FULL completed set (true sprint totals)
   if(S_PARSED.sprint_number){
     const compPts=S_PARSED.completed.reduce((s,i)=>s+(i.points||0),0);
     const committed=S_PARSED.pts_start;
-    const issuesForMetrics=[...S_PARSED.completed,...(S_PARSED.incomplete||[])];
-    const defPts=issuesForMetrics.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
-    const valPts=issuesForMetrics.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+    const issuesForMetrics=[...S_PARSED.completed, ...(S_PARSED.incomplete||[])];
+    const defPts=issuesForMetrics.filter(i=>FIX_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+    const valPts=issuesForMetrics.filter(i=>VALUE_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
     document.getElementById('f-sprint').value=S_PARSED.sprint_number;
     document.getElementById('f-goals').value=S_PARSED.goals.length;
     document.getElementById('f-committed').value=committed;
@@ -548,30 +724,42 @@ function runParse(){
     document.getElementById('f-defects').value=defPts;
     document.getElementById('f-value').value=valPts;
   }
-  try{localStorage.setItem(LS_LAST_SPRINT,JSON.stringify({...S_PARSED,savedAt:Date.now()}));}catch(e){}
-  const ind=document.getElementById('parsed-indicator');if(ind)ind.style.display='inline';
-}
-function restoreLastSprint(){
+  // Persist so it's available across sessions until "Start new sprint" is clicked
   try{
-    const raw=localStorage.getItem(LS_LAST_SPRINT);if(!raw)return;
-    const saved=JSON.parse(raw);S_PARSED=saved;
-    renderSprint(S_PARSED);
-    const diff=computeNewVsReported(S_PARSED);renderCoverageBanner(diff);
-    updateDashGoals();
-    const ind=document.getElementById('parsed-indicator');if(ind)ind.style.display='inline';
+    localStorage.setItem(LS_LAST_SPRINT, JSON.stringify({...S_PARSED, savedAt:Date.now()}));
   }catch(e){}
-}
-function startNewSprint(){
-  if(!confirm('This clears the saved sprint context. Your saved Dashboard history is NOT affected. Continue?'))return;
-  S_PARSED=null;CURRENT_NEW_KEYS=[];
-  localStorage.removeItem(LS_LAST_SPRINT);
-  document.getElementById('paste').value='';document.getElementById('s-out').innerHTML='';
-  document.getElementById('parsed-indicator').style.display='none';document.getElementById('dash-goals-box').style.display='none';
-  const cb=document.getElementById('coverage-banner');if(cb)cb.innerHTML='';
+  const ind=document.getElementById('parsed-indicator');
+  if(ind)ind.style.display='inline';
 }
 
-// Generic ticket key: any uppercase-letter project prefix + hyphen + digits (e.g. MC-123, MEMBERCENTRAL-45)
-const KEY_RE='[A-Z][A-Z0-9]{1,14}-\\d+';
+function restoreLastSprint(){
+  try{
+    const raw=localStorage.getItem(LS_LAST_SPRINT);
+    if(!raw)return;
+    const saved=JSON.parse(raw);
+    S_PARSED=saved;
+    renderSprint(S_PARSED);
+    const diff=computeNewVsReported(S_PARSED);
+    renderCoverageBanner(diff);
+    preFillGoals(S_PARSED, diff.newItems);
+    updateDashGoals();
+    const ind=document.getElementById('parsed-indicator');
+    if(ind)ind.style.display='inline';
+  }catch(e){}
+}
+
+function startNewSprint(){
+  if(!confirm('This clears the saved sprint context (goals, fix & improvement/value points, committed/done) used to pre-fill the Email tab. Your saved Dashboard history is NOT affected. Continue?'))return;
+  S_PARSED=null;
+  CURRENT_NEW_KEYS=[];
+  localStorage.removeItem(LS_LAST_SPRINT);
+  document.getElementById('paste').value='';
+  document.getElementById('s-out').innerHTML='';
+  document.getElementById('parsed-indicator').style.display='none';
+  document.getElementById('dash-goals-box').style.display='none';
+  // Clear email goal fields since they were pre-filled from the old sprint
+  ['e-g1','e-g2','e-g3','e-g4'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
 
 function parseGoals(txt){
   const goals=[];
@@ -604,48 +792,51 @@ function ticketSummary(line){
 
 function parseSprint(txt){
   const p={};
-  const nm=txt.match(/Sprint\s+(\d+)/i);
+  const nm=txt.match(/CTS\/?O?\s+Sprint\s+(\d+)/i)||txt.match(/Sprint\s+(\d+)/i);
   p.sprint_number=nm?parseInt(nm[1]):null;p.sprint_name=nm?nm[0].trim():'Unknown Sprint';p.goals=parseGoals(txt);
-
-  const keyRe=new RegExp(KEY_RE);
-
   const compSec=txt.match(/Completed Issues[\s\S]*?(?=Issues Not Completed)/i)?.[0]||'';
-  const completed=[];let addedFromCompleted=0;
+  const completed=[];
+  let addedFromCompleted=0;
   compSec.split('\n').forEach(l=>{
-    const km=l.match(keyRe);if(!km)return;
+    const km=l.match(/CTSO-(\d+)/);if(!km)return;
     const pm=l.match(/(\d+)\s*$/);
     const ttype=ticketType(l);
     const raw=ticketSummary(l);
-    const pts=pm?parseInt(pm[1]):0;const isAdded=l.includes('*');
+    const pts=pm?parseInt(pm[1]):0;
+    const isAdded=l.includes('*');
     if(isAdded)addedFromCompleted+=pts;
-    completed.push({key:km[0],type:ttype,points:pts,added:isAdded,summary:raw});
+    completed.push({key:'CTSO-'+km[1],type:ttype,points:pts,added:isAdded,summary:raw});
   });
   p.completed=completed;
   const completedTotal=completed.reduce((s,i)=>s+(i.points||0),0);
 
-  const incSec=txt.match(/Issues Not Completed[\s\S]*?(?=Issues Removed)/i)?.[0]||txt.match(/Issues Not Completed[\s\S]*?$/i)?.[0]||'';
-  let addedFromIncomplete=0;const incomplete=[];
+  const incSec=txt.match(/Issues Not Completed[\s\S]*?(?=Issues Removed)/i)?.[0]||
+               txt.match(/Issues Not Completed[\s\S]*?$/i)?.[0]||'';
+  let addedFromIncomplete=0;
+  const incomplete=[];
   incSec.split('\n').forEach(l=>{
-    const km=l.match(keyRe);if(!km)return;
+    const km=l.match(/CTSO-(\d+)/);if(!km)return;
     const pm=l.match(/(\d+)(?:\s*[→\u2192>]+\s*(\d+))?\s*$/);
     const ttype=ticketType(l);
     const pts=pm?(parseInt(pm[2]||pm[1])||0):0;
     const raw=ticketSummary(l);
-    const isAdded=l.includes('*');if(isAdded)addedFromIncomplete+=pts;
-    incomplete.push({key:km[0],type:ttype,points:pts,added:isAdded,summary:raw});
+    const isAdded=l.includes('*');
+    if(isAdded)addedFromIncomplete+=pts;
+    incomplete.push({key:'CTSO-'+km[1],type:ttype,points:pts,added:isAdded,summary:raw});
   });
   p.incomplete=incomplete;
   const incompleteTotal=incomplete.reduce((s,i)=>s+(i.points||0),0);
 
   const remSec=txt.match(/Issues Removed[\s\S]*?$/i)?.[0]||'';
-  let remPts=0,addedFromRemoved=0;
+  let remPts=0, addedFromRemoved=0;
   remSec.split('\n').forEach(l=>{
-    const km=l.match(keyRe);if(!km)return;
+    const km=l.match(/CTSO-(\d+)/);if(!km)return;
     const pm=l.match(/(\d+)\s*$/);
-    if(pm){const v=parseInt(pm[1]);if(!isNaN(v)){remPts+=v;if(l.includes('*'))addedFromRemoved+=v;}}
+    if(pm){const v=parseInt(pm[1]);if(!isNaN(v)){remPts+=v; if(l.includes('*'))addedFromRemoved+=v;}}
   });
   p.pts_removed=remPts;
 
+  // Correct formula: Committed = Completed + Not Completed + Removed − points on items added mid-sprint
   const addedTotal=addedFromCompleted+addedFromIncomplete+addedFromRemoved;
   p.pts_added=addedTotal;
   p.pts_start=completedTotal+incompleteTotal+remPts-addedTotal;
@@ -656,9 +847,10 @@ function renderSprint(p){
   const compPts=p.completed.reduce((s,i)=>s+(i.points||0),0);
   const committed=p.pts_start,added=p.pts_added,removed=p.pts_removed;
   const rollover=Math.max(0,committed-removed-compPts);
-  const issuesForMetrics=[...p.completed,...(p.incomplete||[])];
-  const defPts=issuesForMetrics.filter(i=>['Defect','Incident'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
-  const valPts=issuesForMetrics.filter(i=>['Story','Spike','Scope Change'].includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+  // Use completed issues for defect/value; fall back to incomplete if sprint still active
+  const issuesForMetrics=[...p.completed, ...(p.incomplete||[])];
+  const defPts=issuesForMetrics.filter(i=>FIX_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
+  const valPts=issuesForMetrics.filter(i=>VALUE_TYPES.includes(i.type)).reduce((s,i)=>s+(i.points||0),0);
   const valAdd=(defPts+valPts)>0?Math.round(valPts/(defPts+valPts)*100):0;
   const gc=p.goals.length;
   document.getElementById('s-out').innerHTML=`
@@ -666,13 +858,13 @@ function renderSprint(p){
       ${[['Sprint',p.sprint_name,'font-size:12px',''],['Goals',gc,'',''],['Committed',committed,'',''],['Completed',compPts,'','color:#1e6e3a'],['Rolling over',rollover,'','color:#7a5c00']].map(([l,v,vs,vc])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="${vs};${vc}">${v}</p></div>`).join('')}
     </div>
     <div class="stab-row">
-      <button class="btn" id="st0" onclick="stab(0,this)" style="background:#f0f0f0">Metrics</button>
-      <button class="btn" id="st1" onclick="stab(1,this)">Goals (${gc})</button>
-      <button class="btn" id="st2" onclick="stab(2,this)">Outputs</button>
+      <button class="tab on" id="st0" onclick="stab(0,this)">Metrics</button>
+      <button class="tab" id="st1" onclick="stab(1,this)">Goals (${gc})</button>
+      <button class="tab" id="st2" onclick="stab(2,this)">Outputs</button>
     </div>
     <div id="sv0">
       <div class="grid-cards">
-        ${[['Sprint #',p.sprint_number||'','number','m0'],['Release #','','text','m1'],['# Goals',gc,'number','m2'],['Goals achieved','','number','m3'],['SP committed',committed,'number','m4'],['SP done',compPts,'number','m5'],['Added',added,'number','m6'],['Removed',removed,'number','m7'],['Defects (pts)',defPts,'number','m8'],['Value (pts)',valPts,'number','m9'],['Cycle time','','number','m10'],['Lead time','','number','m11']].map(([l,v,t,id])=>`<div class="card"><p class="lbl">${l}</p><input type="${t}" id="${id}" value="${v}" placeholder="—" style="margin-top:4px"></div>`).join('')}
+        ${[['Sprint #',p.sprint_number||'','number','m0'],['Release #','Release 1.4','text','m1'],['# Goals',gc,'number','m2'],['Goals achieved','','number','m3'],['SP committed',committed,'number','m4'],['SP done',compPts,'number','m5'],['Added',added,'number','m6'],['Removed',removed,'number','m7'],['Fixes & Improvements (pts)',defPts,'number','m8'],['Value (pts)',valPts,'number','m9'],['Cycle time','','number','m10'],['Lead time','','number','m11']].map(([l,v,t,id])=>`<div class="card"><p class="lbl">${l}</p><input type="${t}" id="${id}" value="${v}" placeholder="—" style="margin-top:4px"></div>`).join('')}
       </div>
       <p style="font-size:11px;color:#888;margin-top:6px">Enter Cycle &amp; Lead time from Jira Control Chart, then click Save to Dashboard to update charts.</p>
       <button class="btn" style="margin-top:8px" onclick="saveFromSprintTab()">Save to Dashboard</button>
@@ -681,28 +873,65 @@ function renderSprint(p){
       ${gc?p.goals.map((g,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #eee"><input type="checkbox" id="g${i}" style="margin-top:2px;cursor:pointer"><label for="g${i}" style="font-size:13px;cursor:pointer;line-height:1.4">${g}</label></div>`).join('')+`<div style="margin-top:10px;display:flex;align-items:center;gap:10px"><button class="btn" onclick="tally()">Tally goals</button><span id="gtally" style="font-size:13px;color:#666"></span></div>`:'<p style="font-size:13px;color:#888">No goals found.</p>'}
     </div>
     <div id="sv2" style="display:none">
-      <p class="sec">Metrics dashboard row</p>
-      <div class="mono" id="sc0">${['Sprint #:        Sprint '+(p.sprint_number||'??'),'Release #:       [enter above]','# Sprint goals:  '+gc,'Goals achieved:  [tally goals tab]','% achieved:      [auto-calculates]','Goal % target:   80%','SP committed:    '+committed,'SP done:         '+compPts,'% SP complete:   '+Math.round(compPts/Math.max(committed,1)*100)+'%','Cycle time:      [enter above then save]','Defects (pts):   '+defPts,'Value (pts):     '+valPts,'Value add %:     '+valAdd+'%','Lead time:       [enter above then save]'].join('\n')}</div>
+      <p class="sec">Confluence metrics row</p>
+      <div class="mono" id="sc0">${['Sprint #:        Sprint '+(p.sprint_number||'??'),'Release #:       Release 1.4','# Sprint goals:  '+gc,'Goals achieved:  [tally goals tab]','% achieved:      [auto-calculates]','Goal % target:   80%','SP committed:    '+committed,'SP done:         '+compPts,'% SP complete:   '+Math.round(compPts/Math.max(committed,1)*100)+'%','Cycle time:      [enter above then save]','Fixes & Improvements (pts): '+defPts,'Value (pts):     '+valPts,'Value add %:     '+valAdd+'%','Lead time:       [enter above then save]'].join('\n')}</div>
       <button class="btn" style="margin-top:6px" onclick="cp('sc0')">Copy</button>
-      <p class="sec">Retro / sprint review snapshot</p>
+      <p class="sec">Retro snapshot</p>
       <div class="mono" id="sc1">${['Started with:  '+p.pts_start+' pts','Added:         '+added+' pts','Removed:       '+removed+' pts','Completed:     '+compPts+' pts','Rolling over:  '+rollover+' pts'].join('\n')}</div>
       <button class="btn" style="margin-top:6px" onclick="cp('sc1')">Copy</button>
-    </div>`;
+    </div>
+    <div id="prefill-notice" style="font-size:12px;color:#1254a0;background:#e3f0fd;border-radius:8px;padding:8px 12px;margin-top:8px">&#9998; Goal areas in the Email tab pre-filled from sprint tickets — review and edit before generating.</div>`;
 }
+
 function saveFromSprintTab(){
   if(!S_PARSED||!S_PARSED.sprint_number)return;
-  const f=id=>parseFloat(document.getElementById(id)?.value)||0;const n=id=>parseInt(document.getElementById(id)?.value)||0;
-  const entry={sprint:S_PARSED.sprint_number,release:document.getElementById('m1')?.value||'—',goals:n('m2'),goalsmet:n('m3'),committed:n('m4'),done:n('m5'),cycle:f('m10'),lead:f('m11'),defects:n('m8'),value:n('m9')};
-  let data=loadSprints();const idx=data.findIndex(d=>d.sprint===entry.sprint);
-  if(idx>=0)data[idx]=entry;else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
-  saveSprints(data);renderDashboard();updateDashGoals();
+  const f=id=>parseFloat(document.getElementById(id)?.value)||0;
+  const n=id=>parseInt(document.getElementById(id)?.value)||0;
+  const entry={
+    sprint:S_PARSED.sprint_number,
+    release:document.getElementById('m1')?.value||'—',
+    goals:n('m2'),goalsmet:n('m3'),
+    committed:n('m4'),done:n('m5'),
+    cycle:f('m10'),lead:f('m11'),
+    defects:n('m8'),value:n('m9')
+  };
+  let data=loadSprints();
+  const idx=data.findIndex(d=>d.sprint===entry.sprint);
+  if(idx>=0) data[idx]=entry; else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
+  saveSprints(data);
+  renderDashboard();
+  updateDashGoals();
   alert('Sprint '+entry.sprint+' saved to dashboard!');
 }
-function stab(n,btn){[0,1,2].forEach(i=>{const v=document.getElementById('sv'+i);if(v)v.style.display=i===n?'block':'none';});document.querySelectorAll('.stab-row .btn').forEach(b=>b.style.background='#fff');btn.style.background='#f0f0f0';}
+
+function stab(n,btn){[0,1,2].forEach(i=>{const v=document.getElementById('sv'+i);if(v)v.style.display=i===n?'block':'none';});document.querySelectorAll('.stab-row .tab').forEach(b=>b.className='tab');btn.className='tab on';}
 function tally(){const boxes=document.querySelectorAll('[id^="g"]');const done=[...boxes].filter(b=>b.checked).length;const el=document.getElementById('gtally');if(el)el.textContent=done+'/'+boxes.length+' achieved ('+Math.round(done/boxes.length*100)+'%)';const m3=document.getElementById('m3');if(m3)m3.value=done;}
 
-// ── EPIC CSV — dynamic baseline (no hardcoded epic list) ──────────────────
+function preFillGoals(p, itemsOverride){
+  const items=itemsOverride||p.completed;
+  const g1=[],g2=[],g3=[],g4=[];
+  const g2kw=/UAT|user accept|end.?user|UX|design|feedback|demo|workflow|experience|view|display|notif|email|SMS|message|announ/i;
+  const g3kw=/pipeline|CI\/CD|automat|tool|agent|mailTrap|test.?env|playbook|deploy|process|velocity|documentation|efficiency|scalab/i;
+  const g4kw=/azure|alert|monitor|logging|compliance|security|reliab|integrat|symbility|xact|API|SOAP|upload.?fail|import|export|environment|config|error|fix|bug|defect|incident/i;
+  items.forEach(i=>{
+    if(!i.summary||i.summary.length<4)return;
+    const s=i.summary,type=i.type;
+    if(['Defect','Incident'].includes(type)){g2kw.test(s)?g2.push(s):g4.push(s);}
+    else if(['Spike'].includes(type)){g3.push(s);}
+    else if(['Story','Scope Change'].includes(type)){g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
+    else{g3kw.test(s)?g3.push(s):g4kw.test(s)?g4.push(s):g2kw.test(s)?g2.push(s):g1.push(s);}
+  });
+  // Always overwrite (not setIfEmpty) since re-parsing mid-sprint should refresh with the new delta
+  const setField=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val;};
+  const build=(done)=>done.length?'Done: '+done.join('; '):'';
+  setField('e-g1',build(g1));setField('e-g2',build(g2));setField('e-g3',build(g3));setField('e-g4',build(g4));
+}
+
+// ── EPIC CSV ────────────────────────────────────────────────────────────────
 const DONE_S=['Done','In Review','Quality Assurance','Ready for UAT'],IP_S=['In Progress'],EXCL_S=['Canceled','Cancelled'];
+const BASELINE=[
+  {key:'CTSO-712',name:'Upload Failure + Pending Approval Queues',status:'Done',pts:23},{key:'CTSO-153',name:'Pre-Release Readiness',status:'Done',pts:40},{key:'CTSO-151',name:'Build Core Architecture',status:'Done',pts:90},{key:'CTSO-143',name:'Implement Secure and Observable Integration with Member Data API',status:'Done',pts:53},{key:'CTSO-134',name:'Establish CI/CD Pipeline',status:'Done',pts:7},{key:'CTSO-132',name:'Design and Implement Responsive, Role-Based Dashboard Templates',status:'Done',pts:26},{key:'CTSO-131',name:'Develop Unified Navigation and Application Shell',status:'Done',pts:30},{key:'CTSO-130',name:'Job Assignment Workflow for SPG Processors',status:'Done',pts:121},{key:'CTSO-126',name:'Implement Core Claim/Job Search and Detail Functionality',status:'Done',pts:84},{key:'CTSO-116',name:'Implement Document Storage & Data Retention',status:'Done',pts:13},{key:'CTSO-108',name:'Implement Automated Testing Framework',status:'Done',pts:14},{key:'CTSO-107',name:'Implement Centralized Logging, Monitoring, and Alerting',status:'Done',pts:20},{key:'CTSO-104',name:'Build Core Azure-Based Services Architecture',status:'Done',pts:20},{key:'CTSO-78',name:'Foundational Development',status:'Done',pts:13},{key:'CTSO-36',name:'Phase 0 Discovery Deliverables',status:'Done',pts:54},{key:'CTSO-19',name:'CTS Modernization Project - Onboarding',status:'Done',pts:15},{key:'CTSO-677',name:'Representative (Adjuster) Management',status:'Done',pts:6},{key:'CTSO-580',name:'Company Details Improvements',status:'Done',pts:9},{key:'CTSO-592',name:'Visual Alerts',status:'In Review',pts:17},{key:'CTSO-148',name:'Announcements Management',status:'In Progress',pts:8},{key:'CTSO-111',name:'User Admin',status:'In Progress',pts:22},{key:'CTSO-641',name:'CTSO - Member Business & Account Management',status:'Backlog',pts:15},{key:'CTSO-266',name:'Modernizing the Database',status:'Backlog',pts:15},{key:'CTSO-136',name:'CTSO - Authentication, Member Context & Impersonation',status:'Backlog',pts:20},{key:'CTSO-129',name:'Streamline Job Triage & Resolution for Expeditors',status:'Backlog',pts:15},{key:'CTSO-127',name:'CEC Workflow: ResolveIts, Dashboard, and Assignment Details',status:'Backlog',pts:35},{key:'CTSO-124',name:'Build out Billing Workflow',status:'Backlog',pts:15},{key:'CTSO-123',name:'Build out Payment Batch and File Uploads',status:'Backlog',pts:15},{key:'CTSO-119',name:'Enterprise Configuration',status:'Backlog',pts:15},{key:'CTSO-109',name:'CTSO - Member Dashboard & Announcements',status:'Backlog',pts:15},{key:'CTSO-590',name:'Partner (Carrier) Management',status:'REFINED',pts:15},{key:'CTSO-579',name:'Driving Distance Company Assignment Improvement',status:'REFINED',pts:5},{key:'CTSO-128',name:'Develop Estimate Review and Approval Workflow',status:'REFINED',pts:15},{key:'CTSO-118',name:'Build Admin Settings Console for Super Admin',status:'REFINED',pts:35},{key:'CTSO-110',name:'Implement Follow Ups',status:'REFINED',pts:20},
+];
 function dropEpic(e){e.preventDefault();document.getElementById('dz-epic').classList.remove('drag');loadEpicFile(e.dataTransfer.files[0]);}
 function loadEpicFile(f){if(f)f.text().then(parseEpicCSV);}
 function parseCSVLine(line){const fields=[];let cur='',inQ=false;for(let i=0;i<line.length;i++){if(line[i]==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}else if(line[i]===','&&!inQ){fields.push(cur.trim());cur='';}else cur+=line[i];}fields.push(cur.trim());return fields;}
@@ -711,71 +940,66 @@ function parseEpicCSV(txt){
   if(!lines.length){showErr('e-err','File appears empty.');return;}
   const hdr=parseCSVLine(lines[0]).map(h=>h.toLowerCase().replace(/[^a-z0-9]/g,' ').trim());
   const ki=hdr.findIndex(h=>h.includes('issue key')||h==='key'),ni=hdr.findIndex(h=>h.includes('summary')),si=hdr.findIndex(h=>h.includes('status')),pi=hdr.findIndex(h=>h.includes('story point'));
-  if(ki<0||ni<0||si<0||pi<0){showErr('e-err','Could not find columns. Headers found: '+hdr.join(', '));return;}
-  const keyValRe=new RegExp('^'+KEY_RE+'$');
-  const epics=[];
-  for(let i=1;i<lines.length;i++){
-    const c=parseCSVLine(lines[i]);const key=(c[ki]||'').trim();
-    if(!keyValRe.test(key))continue;
-    const status=(c[si]||'').trim();if(EXCL_S.includes(status))continue;
-    epics.push({key,name:(c[ni]||'').trim(),status,pts:Math.round(parseFloat(c[pi]||'0')||0)});
-  }
-  if(!epics.length){showErr('e-err','No epics found — check that Issue key values look like PROJECT-123.');return;}
+  if(ki<0||ni<0||si<0||pi<0){showErr('e-err','Could not find columns. Headers: '+hdr.join(', '));return;}
+  const epics=[];for(let i=1;i<lines.length;i++){const c=parseCSVLine(lines[i]);const key=(c[ki]||'').trim();if(!key.match(/^CTSO-\d+$/))continue;const status=(c[si]||'').trim();if(EXCL_S.includes(status))continue;epics.push({key,name:(c[ni]||'').trim(),status,pts:Math.round(parseFloat(c[pi]||'0')||0)});}
+  if(!epics.length){showErr('e-err','No CTSO- epics found.');return;}
   clearErr('e-err');
-  const dz=document.getElementById('dz-epic');dz.className='dz ok';
-  dz.innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; ${epics.length} epics loaded</p><p style="font-size:12px;color:#555">${epics.filter(e=>DONE_S.includes(e.status)).length} Done &middot; ${epics.filter(e=>IP_S.includes(e.status)).length} In Progress</p>`;
+  const dz=document.getElementById('dz-epic');dz.className='dz ok';dz.innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; ${epics.length} epics loaded</p><p style="font-size:12px;color:#555">${epics.filter(e=>DONE_S.includes(e.status)).length} Done &middot; ${epics.filter(e=>IP_S.includes(e.status)).length} In Progress/Review</p>`;
   renderEpics(epics);
 }
-let CURRENT_EPICS_DATA=null;
+let CURRENT_EPICS_DATA=null; // stored so the IP adj input can recalc live
+
 function renderEpics(epics){
   CURRENT_EPICS_DATA=epics;
   const hasIP=epics.some(e=>IP_S.includes(e.status));
   renderEpicsWithAdj(hasIP?2:0);
 }
+
 function renderEpicsWithAdj(ipAdjPct){
-  const epics=CURRENT_EPICS_DATA;if(!epics)return;
+  const epics=CURRENT_EPICS_DATA;
+  if(!epics)return;
   const total=epics.reduce((s,e)=>s+e.pts,0),done=epics.filter(e=>DONE_S.includes(e.status)).reduce((s,e)=>s+e.pts,0);
   const hasIP=epics.some(e=>IP_S.includes(e.status));
-  const adjFraction=ipAdjPct/100;const pct=total?Math.round((done/total+adjFraction)*1000)/10:0;
+  const adjFraction=ipAdjPct/100;
+  const pct=total?Math.round((done/total+adjFraction)*1000)/10:0;
   const equivPts=total?Math.round(total*adjFraction*10)/10:0;
-  localStorage.setItem(LS_EPIC_PCT,pct);
-  const epicPctEl=document.getElementById('dc-epicpct');if(epicPctEl){epicPctEl.textContent=pct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
 
-  // Compare against last uploaded snapshot (dynamic baseline — no hardcoded epic list)
-  let baseline=[];try{baseline=JSON.parse(localStorage.getItem(LS_EPIC_BASELINE)||'[]');}catch(e){}
-  const changes=epics.filter(e=>{const b=baseline.find(x=>x.key===e.key);return b&&b.status!==e.status;});
-  const newE=epics.filter(e=>!baseline.find(x=>x.key===e.key));
+  localStorage.setItem(LS_EPIC_PCT, pct);
+  const epicPctEl=document.getElementById('dc-epicpct');
+  if(epicPctEl){epicPctEl.textContent=pct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
+
+  const changes=epics.filter(e=>{const b=BASELINE.find(x=>x.key===e.key);return b&&b.status!==e.status;});
 
   document.getElementById('e-out').innerHTML=`
     <div class="pct-row"><span style="font-size:13px;color:#555">Done pts</span><span style="font-size:18px;font-weight:500">${done}</span></div>
     <div class="pct-row"><span style="font-size:13px;color:#555">Total pts</span><span style="font-size:18px;font-weight:500">${total}</span></div>
     <div class="pct-row" style="align-items:center">
-      <span style="font-size:13px;color:#555">IP adj.${hasIP?'':' <span style=\"color:#aaa\">(no In Progress epics)</span>'}</span>
+      <span style=\"font-size:13px;color:#555\">IP adj.${hasIP?'':' <span style=\"color:#aaa\">(no In Progress epics)</span>'}</span>
       <span style="display:flex;align-items:center;gap:4px">
         <input type="number" id="ip-adj-input" value="${ipAdjPct}" min="0" max="20" step="0.5" style="width:55px;font-size:14px;padding:3px 6px;border-radius:6px;border:1px solid #ddd;text-align:right" oninput="onIpAdjChange(this.value)">
         <span style="font-size:14px;font-weight:500">%</span>
       </span>
     </div>
-    <p class="hint" style="text-align:right;margin-top:-4px">${ipAdjPct}% ≈ ${equivPts} of ${total} total pts &middot; typical range 2&ndash;5%</p>
+    <p class="hint" id="ip-adj-hint" style="text-align:right;margin-top:-4px">${ipAdjPct}% ≈ ${equivPts} of ${total} total pts &middot; typical range 2&ndash;5%</p>
     <div class="pct-row"><span style="font-size:13px;color:#555">% Complete</span><span style="font-size:22px;font-weight:500;color:#1e6e3a">${pct}%</span></div>
+
     <div class="mono" id="epct" style="margin-top:8px">Done\t${done}\nTotal\t${total}\nIP ${ipAdjPct}%\t${ipAdjPct}%\nPercent Complete\t${pct}%</div>
     <button class="btn" style="margin-top:6px" onclick="cp('epct')">Copy</button>
-    ${baseline.length?(changes.length||newE.length?`<p class="sec" style="margin-top:1rem">${changes.length} status change(s) since last upload${newE.length?`, ${newE.length} new epic(s)`:''}</p>
+    ${changes.length?`<p class="sec" style="margin-top:1rem">${changes.length} status change(s) — update % Complete tab in spreadsheet</p>
     <div style="border:1px solid #eee;border-radius:8px;overflow:hidden"><table class="etable"><thead><tr><th>Key</th><th>Epic</th><th>Was</th><th>Now</th><th>Pts</th></tr></thead>
-    <tbody>${[...changes.map(e=>{const b=baseline.find(x=>x.key===e.key);const sc=DONE_S.includes(e.status)?'ok-b':IP_S.includes(e.status)?'warn-b':'info-b';return`<tr style="background:#fff8e1"><td style="font-size:11px;color:#888">${e.key}</td><td style="font-size:12px">${e.name.length>42?e.name.substring(0,42)+'...':e.name}</td><td style="font-size:11px;color:#888">${b.status}</td><td><span class="badge ${sc}">${e.status}</span></td><td>${e.pts}</td></tr>`;}),...newE.map(e=>`<tr style="background:#e3f0fd"><td style="font-size:11px;color:#888">${e.key}</td><td style="font-size:12px">${e.name.length>42?e.name.substring(0,42)+'...':e.name}</td><td style="font-size:11px;color:#888">new</td><td><span class="badge info-b">${e.status}</span></td><td>${e.pts}</td></tr>`)].join('')}</tbody></table></div>`
-    :'<p style="font-size:12px;color:#888;margin-top:8px">&#10003; No status changes since last upload.</p>')
-    :'<p style="font-size:12px;color:#888;margin-top:8px">First upload saved as baseline — future uploads will show status changes here.</p>'}`;
-
-  // Save this upload as the new baseline for next time
-  localStorage.setItem(LS_EPIC_BASELINE,JSON.stringify(epics));
+    <tbody>${changes.map(e=>{const b=BASELINE.find(x=>x.key===e.key);const sc=DONE_S.includes(e.status)?'ok-b':IP_S.includes(e.status)?'warn-b':'info-b';return`<tr style="background:#fff8e1"><td style="font-size:11px;color:#888">${e.key}</td><td style="font-size:12px">${e.name.length>42?e.name.substring(0,42)+'...':e.name}</td><td style="font-size:11px;color:#888">${b.status}</td><td><span class="badge ${sc}">${e.status}</span></td><td>${e.pts}</td></tr>`;}).join('')}</tbody></table></div>`
+    :'<p style="font-size:12px;color:#888;margin-top:8px">&#10003; No status changes vs. baseline.</p>'}`;
 }
+
 function onIpAdjChange(val){
-  const pct=parseFloat(val);if(isNaN(pct)||pct<0)return;
+  const pct=parseFloat(val);
+  if(isNaN(pct)||pct<0)return;
   renderEpicsWithAdj(pct);
+  // Restore focus to the input after re-render so typing isn't interrupted
   setTimeout(()=>{const el=document.getElementById('ip-adj-input');if(el){el.focus();el.setSelectionRange(el.value.length,el.value.length);}},0);
 }
 
-// ── INVOICE — groups dynamically by whatever contract code(s) appear ──────
+// ── INVOICE ─────────────────────────────────────────────────────────────────
 function dropInv(e){e.preventDefault();document.getElementById('dz-inv').classList.remove('drag');loadInvFile(e.dataTransfer.files[0]);}
 async function loadInvFile(f){
   if(!f)return;clearErr('i-err');
@@ -785,99 +1009,374 @@ async function loadInvFile(f){
 }
 function monthNameToNum(s){
   const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
-  const m=s.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s*(\d{4})/);if(!m)return s;
+  const m=s.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s*(\d{4})/);
+  if(!m)return s;
   const mon=months[m[1].toLowerCase().substring(0,3)]||1;
   return String(mon).padStart(2,'0')+'/'+String(m[2]).padStart(2,'0')+'/'+m[3];
 }
+
 function parseInvoice(txt){
+  // Invoice # — old format "Invoice ID 10000706", new format bare "Invoice 10000887"
   const invM=txt.match(/Invoice\s+ID\s+(\d+)/i)||txt.match(/Invoice\s+(\d{6,})/i);
   const invNum=invM?invM[1]:'—';
+
+  // Invoice date — old format "Issue Date MM/DD/YYYY", new format "Invoice date Mon DD, YYYY"
   const dateOld=txt.match(/Issue\s+Date\s+([\d\/]+)/i);
   const dateNew=txt.match(/Invoice date\s+([A-Za-z]{3,9}\s+\d{1,2},?\s*\d{4})/i);
   const invDate=dateOld?dateOld[1]:(dateNew?monthNameToNum(dateNew[1]):'—');
 
+  // Line items — new format inserts a repeated "Product" name between the date range and Qty/Rate/Amount
   const rows=[];
   const re=/\[([^\]]+)\]\s+(.*?):?\s+([\w\s]+?)\s+\((\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\)\s+(?:[\w\s\-]+?\s+)?(\d+\.\d{2})\s+\$[\d,.]+\s+\$([\d,]+)/g;
-  let m;while((m=re.exec(txt))!==null){
-    const code=m[1].trim();
-    rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});
-  }
+  let m;while((m=re.exec(txt))!==null){const code=m[1].trim();rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,type:code.includes('CCA.11')?'MOD':'LEG',hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});}
   if(!rows.length){showErr('i-err','Could not parse line items — PDF text layer may not be readable.');return;}
 
-  const processed=getProcessedInvoices();const already=processed.find(p=>p.invNum===invNum);
+  const processed=getProcessedInvoices();
+  const already=processed.find(p=>p.invNum===invNum);
+
   document.getElementById('dz-inv').className='dz ok';
   document.getElementById('dz-inv').innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; Invoice #${invNum} parsed</p><p style="font-size:12px;color:#555">${rows.length} line items</p>`;
-  if(already){showDuplicateWarning(invNum,already.date);renderInvoice(rows,invNum,invDate,false);}
-  else{renderInvoice(rows,invNum,invDate,true);markInvoiceProcessed(invNum,rows);}
+
+  if(already){
+    showDuplicateWarning(invNum, already.date, rows, invDate);
+    renderInvoice(rows,invNum,invDate,false);
+  } else {
+    populateBudgetFromInvoice(rows);
+    renderInvoice(rows,invNum,invDate,true);
+    markInvoiceProcessed(invNum, rows);
+  }
 }
-function getProcessedInvoices(){try{return JSON.parse(localStorage.getItem(LS_PROCESSED_INV)||'[]');}catch(e){return [];}}
-function markInvoiceProcessed(invNum,rows){
-  const list=getProcessedInvoices();const total=rows.reduce((s,r)=>s+r.amt,0);
-  list.push({invNum,date:new Date().toLocaleDateString(),total});
-  localStorage.setItem(LS_PROCESSED_INV,JSON.stringify(list));
+
+function getProcessedInvoices(){
+  try{return JSON.parse(localStorage.getItem(LS_PROCESSED_INV)||'[]');}catch(e){return [];}
+}
+function markInvoiceProcessed(invNum, rows){
+  const list=getProcessedInvoices();
+  const total=rows.reduce((s,r)=>s+r.amt,0);
+  list.push({invNum, date:new Date().toLocaleDateString(), total});
+  localStorage.setItem(LS_PROCESSED_INV, JSON.stringify(list));
   renderProcessedHistory();
 }
 function renderProcessedHistory(){
-  const el=document.getElementById('processed-history');if(!el)return;
-  const list=getProcessedInvoices();if(!list.length){el.innerHTML='';return;}
+  const el=document.getElementById('processed-history');
+  if(!el)return;
+  const list=getProcessedInvoices();
+  if(!list.length){el.innerHTML='';return;}
   el.innerHTML=`<p class="sec">Processed invoices (this browser)</p>
     <div style="border:1px solid #eee;border-radius:8px;overflow:hidden">
       <table class="etable"><thead><tr><th>Invoice #</th><th>Processed</th><th style="text-align:right">Total</th></tr></thead>
       <tbody>${list.slice().reverse().map(p=>`<tr><td>${p.invNum}</td><td style="font-size:11px;color:#888">${p.date}</td><td style="text-align:right">$${p.total.toLocaleString()}</td></tr>`).join('')}</tbody></table>
     </div>`;
 }
-function showDuplicateWarning(invNum,prevDate){
+function showDuplicateWarning(invNum, prevDate, rows, invDate){
   const el=document.getElementById('i-out');
   el.innerHTML=`<div style="background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:12px 14px;margin-bottom:1rem">
     <p style="font-size:13px;font-weight:600;color:#e65100;margin:0 0 4px">⚠ Invoice #${invNum} was already processed on ${prevDate}</p>
-    <p style="font-size:12px;color:#7a5c00;margin:0">This is shown for review only — no totals were changed.</p>
+    <p style="font-size:12px;color:#7a5c00;margin:0 0 10px">To avoid double-counting, these amounts were NOT added to your running totals again. The breakdown below is for review only.</p>
+    <button class="btn" style="font-size:11px;background:#fff;color:#e65100;border-color:#e65100" onclick="forceReprocessInvoice('${invNum}')">Force re-add to totals anyway</button>
   </div>`;
+  window._pendingInvoiceRows=rows; window._pendingInvoiceDate=invDate;
 }
-function renderInvoice(rows,invNum,invDate,wasNew){
-  // Group dynamically by whatever contract code(s) appear on the invoice
-  const byCode={};
-  rows.forEach(r=>{if(!byCode[r.code])byCode[r.code]={amt:0,hrs:0,rows:[]};byCode[r.code].amt+=r.amt;byCode[r.code].hrs+=r.hrs;byCode[r.code].rows.push(r);});
-  const codes=Object.keys(byCode);
-  const grandTotal=rows.reduce((s,r)=>s+r.amt,0);
+function forceReprocessInvoice(invNum){
+  if(!confirm('This will add invoice #'+invNum+' amounts to your running totals again. Only do this if you are certain it was not already counted. Continue?'))return;
+  const rows=window._pendingInvoiceRows; const invDate=window._pendingInvoiceDate;
+  if(!rows)return;
+  populateBudgetFromInvoice(rows);
+  renderInvoice(rows,invNum,invDate,true);
+  markInvoiceProcessed(invNum, rows);
+}
 
-  const byP={};rows.forEach(r=>{const k=r.person;if(!byP[k])byP[k]={hrs:0,amt:0};byP[k].hrs+=r.hrs;byP[k].amt+=r.amt;});
+function fmt$(n){return '$'+Math.round(n).toLocaleString();}
+function loadSavedTotals(){
+  const leg=localStorage.getItem(LS_LEG);const mod=localStorage.getItem(LS_MOD);
+  document.getElementById('prev-leg').value=leg||fmt$(BUDGET_DEFAULTS.legCost);
+  document.getElementById('prev-mod').value=mod||fmt$(BUDGET_DEFAULTS.modCost);
+  loadBudgetSettings();
+}
+// Budget total + projected variance are remembered between sessions so they never silently revert
+function loadBudgetSettings(){
+  let st={};try{st=JSON.parse(localStorage.getItem(LS_BUDGET)||'{}');}catch(e){}
+  const d=BUDGET_DEFAULTS;
+  document.getElementById('b-leg-budget').value=fmt$(st.legBudget!=null?st.legBudget:d.legBudget);
+  document.getElementById('b-mod-budget').value=fmt$(st.modBudget!=null?st.modBudget:d.modBudget);
+  document.getElementById('b-mod-var').value=fmt$(st.modVar!=null?st.modVar:d.modVar);
+  recalcModETC();
+}
+function saveBudgetSettings(){
+  const num=id=>parseFloat((document.getElementById(id).value||'0').replace(/[^0-9.-]/g,''))||0;
+  localStorage.setItem(LS_BUDGET,JSON.stringify({legBudget:num('b-leg-budget'),modBudget:num('b-mod-budget'),modVar:num('b-mod-var')}));
+}
+function savePrevTotals(){const leg=document.getElementById('prev-leg').value.trim();const mod=document.getElementById('prev-mod').value.trim();if(leg)localStorage.setItem(LS_LEG,leg);if(mod)localStorage.setItem(LS_MOD,mod);}
+function populateBudgetFromInvoice(rows){
+  const legAmt=rows.filter(r=>r.type==='LEG').reduce((s,r)=>s+r.amt,0);const modAmt=rows.filter(r=>r.type==='MOD').reduce((s,r)=>s+r.amt,0);
+  const prevLeg=parseFloat((document.getElementById('prev-leg').value||fmt$(BUDGET_DEFAULTS.legCost)).replace(/[^0-9.]/g,''))||0;const prevMod=parseFloat((document.getElementById('prev-mod').value||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
+  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||String(BUDGET_DEFAULTS.legBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.legBudget;const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
+  const newLeg=prevLeg+legAmt,newMod=prevMod+modAmt;
+  localStorage.setItem(LS_LEG,fmt$(newLeg));localStorage.setItem(LS_MOD,fmt$(newMod));
+  document.getElementById('prev-leg').value=fmt$(newLeg);document.getElementById('prev-mod').value=fmt$(newMod);
+  const setF=(id,val)=>{const el=document.getElementById(id);if(el){el.value=val;el.classList.add('autofilled');}};
+  setF('b-leg-actual',fmt$(newLeg));setF('b-leg-remain',fmt$(legBudget-newLeg));setF('b-mod-actual',fmt$(newMod));setF('b-mod-remain',fmt$(modBudget-newMod));
+  recalcModETC();
+  document.getElementById('e-budget-toggle').value='yes';document.getElementById('budget-fields').style.display='block';document.getElementById('inv-notice').style.display='block';
+}
 
-  const tsv=['Invoice #\tDate\tPeriod Start\tPeriod End\tPerson\tContract Code\tHours\tRate\tAmount\tNotes\tProcessed Date',
-    ...rows.map(r=>[r.invNum,r.invDate,r.start,r.end,r.person,r.code,r.hrs,r.rate,r.amt,r.notes,''].join('\t'))].join('\n');
+function refreshPctComplete(){
+  const pctEl=document.getElementById('e-pct-complete');
+  const saved=localStorage.getItem(LS_EPIC_PCT);
+  const hint=document.getElementById('pct-complete-hint');
+  if(!saved){
+    if(hint){hint.textContent='No value found yet — run the Epic % complete tab first.';hint.style.color='#c00';}
+    return;
+  }
+  pctEl.value=saved;
+  if(hint){
+    hint.textContent='✓ Refreshed from Epic % complete tab just now.';
+    hint.style.color='#1e6e3a';
+    setTimeout(()=>{hint.textContent='Auto-fills on first open — click Refresh anytime after recalculating on the Epic % complete tab';hint.style.color='';},3000);
+  }
+}
 
-  const banner=wasNew
-    ?`<div style="background:#eaf6ee;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e6e3a;margin-bottom:1rem">&#10003; ${rows.length} line items parsed.</div>`
-    :document.getElementById('i-out').innerHTML;
+function recalcLegRemain(){
+  const budget=parseFloat((document.getElementById('b-leg-budget').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const actual=parseFloat((document.getElementById('b-leg-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-leg-remain').value=fmt$(budget-actual);
+}
+
+function recalcModRemain(){
+  const budget=parseFloat((document.getElementById('b-mod-budget').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const actual=parseFloat((document.getElementById('b-mod-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-mod-remain').value=fmt$(budget-actual);
+  recalcModETC();
+}
+
+function recalcModETC(){
+  const remain=parseFloat((document.getElementById('b-mod-remain').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const variance=parseFloat((document.getElementById('b-mod-var').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-mod-etc').value=fmt$(remain+variance);
+}
+
+function populateBudgetFromSaved(){
+  // Auto-fill project % complete if empty
+  const pctEl=document.getElementById('e-pct-complete');
+  if(pctEl && !pctEl.value.trim()){
+    const saved=localStorage.getItem(LS_EPIC_PCT);
+    if(saved)pctEl.value=saved;
+  }
+  // Shows current running totals in the Email tab regardless of whether an invoice was uploaded this session
+  const prevLeg=parseFloat((localStorage.getItem(LS_LEG)||fmt$(BUDGET_DEFAULTS.legCost)).replace(/[^0-9.]/g,''))||0;
+  const prevMod=parseFloat((localStorage.getItem(LS_MOD)||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
+  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||String(BUDGET_DEFAULTS.legBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.legBudget;
+  const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
+  const actEl=document.getElementById('b-leg-actual');
+  // Only auto-fill if the field is currently empty — never clobber a manual edit or fresh invoice fill
+  if(actEl && !actEl.value.trim()){
+    actEl.value=fmt$(prevLeg);
+    document.getElementById('b-leg-remain').value=fmt$(legBudget-prevLeg);
+  }
+  const modActEl=document.getElementById('b-mod-actual');
+  if(modActEl && !modActEl.value.trim()){
+    modActEl.value=fmt$(prevMod);
+    document.getElementById('b-mod-remain').value=fmt$(modBudget-prevMod);
+    recalcModETC();
+  }
+  // Show a subtle note so it's clear these are last-known totals, not necessarily this week's invoice
+  const notice=document.getElementById('inv-notice');
+  if(notice && notice.style.display!=='block'){
+    notice.textContent='ℹ Showing last known running totals — upload a new invoice above to update, or edit these manually.';
+    notice.style.display='block';
+    notice.style.background='#e3f0fd'; notice.style.color='#1254a0';
+  }
+}
+function renderInvoice(rows,invNum,invDate,wasAdded){
+  const mod=rows.filter(r=>r.type==='MOD'),leg=rows.filter(r=>r.type==='LEG');
+  const tMod=mod.reduce((s,r)=>s+r.amt,0),tLeg=leg.reduce((s,r)=>s+r.amt,0),tAll=rows.reduce((s,r)=>s+r.amt,0);
+  const byP={};mod.forEach(r=>{const k=r.person.split(' ')[0];if(!byP[k])byP[k]={name:r.person,hrs:0,amt:0};byP[k].hrs+=r.hrs;byP[k].amt+=r.amt;});
+  const rowMap={Adam:5,Emily:6,Luiz:7,Tyler:8,Yousef:9};
+  const tsv=['Invoice #\tDate\tPeriod Start\tPeriod End\tPerson\tContract\tType\tHours\tRate\tAmount\tNotes\tProcessed Date',...rows.map(r=>[r.invNum,r.invDate,r.start,r.end,r.person,r.code,r.type,r.hrs,r.rate,r.amt,r.notes,''].join('\t'))].join('\n');
+
+  const banner=wasAdded
+    ?`<div style="background:#eaf6ee;border-radius:8px;padding:8px 12px;font-size:12px;color:#1e6e3a;margin-bottom:1rem">&#10003; Budget numbers updated and auto-populated in Email tab.</div>`
+    :document.getElementById('i-out').innerHTML; // preserve the duplicate-warning banner already rendered
 
   document.getElementById('i-out').innerHTML=`
     ${banner}
-    <div class="grid-cards">
-      ${codes.map(c=>`<div class="card"><p class="lbl">${c}</p><p class="val" style="font-size:16px;color:#1254a0">$${byCode[c].amt.toLocaleString()}</p></div>`).join('')}
-      <div class="card"><p class="lbl">Total</p><p class="val" style="font-size:16px">$${grandTotal.toLocaleString()}</p></div>
-    </div>
-    <p class="sec">Burn by person — all contract codes combined</p>
-    <div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:1rem"><table class="etable"><thead><tr><th>Person</th><th style="text-align:right">Hours</th><th style="text-align:right">Amount</th></tr></thead>
-    <tbody>${Object.entries(byP).map(([name,p])=>`<tr><td style="font-weight:500">${name}</td><td style="text-align:right">${p.hrs.toFixed(2)}</td><td style="text-align:right;font-weight:500;color:#1254a0">$${p.amt.toLocaleString()}</td></tr>`).join('')}</tbody></table></div>
-    <p class="hint">Add each person's amount to their row in the Burn by Person tab.</p>
+    <div class="grid-cards">${[['MOD','$'+tMod.toLocaleString(),'color:#1254a0'],['LEG','$'+tLeg.toLocaleString(),'color:#1e6e3a'],['Total','$'+tAll.toLocaleString(),'']].map(([l,v,s])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="font-size:16px;${s}">${v}</p></div>`).join('')}</div>
+    <p class="sec">Burn by person — MOD amounts</p>
+    <div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:1rem"><table class="etable"><thead><tr><th>Person</th><th>Row</th><th style="text-align:right">Hours</th><th style="text-align:right">MOD amount</th></tr></thead>
+    <tbody>${Object.entries(byP).map(([k,p])=>`<tr><td style="font-weight:500">${p.name}</td><td>${rowMap[k]||'?'}</td><td style="text-align:right">${p.hrs.toFixed(2)}</td><td style="text-align:right;font-weight:500;color:#1254a0">$${p.amt.toLocaleString()}</td></tr>`).join('')}${leg.length?`<tr style="background:#f8f8f8"><td colspan="4" style="font-size:11px;color:#888;font-style:italic">LEG lines: Invoice Log only</td></tr>`:''}</tbody></table></div>
     <p class="sec">Invoice log rows</p><div id="inv-tsv" style="display:none">${tsv}</div>
     <button class="btn" onclick="cp('inv-tsv')">Copy all rows for Excel paste</button>
-    <p class="hint" style="margin-top:4px">Paste into the Invoice Log tab at the next empty row</p>`;
+    <p class="hint" style="margin-top:4px">Paste into Legacy Budget tab at next empty row</p>`;
+}
+
+// ── EMAIL ────────────────────────────────────────────────────────────────────
+function toggleStatusNote(){document.getElementById('status-note-row').style.display=document.getElementById('e-status').value!=='On Track'?'grid':'none';}
+function toggleBudget(){document.getElementById('budget-fields').style.display=document.getElementById('e-budget-toggle').value==='yes'?'block':'none';}
+function copyForClaude(){
+  const status=document.getElementById('e-status').value;
+  const statusNote=document.getElementById('e-status-note')?.value?.trim()||'';
+  const intro=document.getElementById('e-intro').value.trim();
+  const g1=document.getElementById('e-g1').value.trim();
+  const g2=document.getElementById('e-g2').value.trim();
+  const g3=document.getElementById('e-g3').value.trim();
+  const g4=document.getElementById('e-g4').value.trim();
+  const risks=document.getElementById('e-risks').value.trim();
+  const next=document.getElementById('e-next').value.trim();
+  const other=document.getElementById('e-other').value.trim();
+  const includeBudget=document.getElementById('e-budget-toggle').value==='yes';
+
+  const lines=[];
+  lines.push('CTS/O Weekly Email — inputs for Claude');
+  lines.push('');
+  lines.push('Sprint context: '+(S_PARSED?S_PARSED.sprint_name:'(not parsed this session)'));
+  const pctField=document.getElementById('e-pct-complete').value.trim();
+  const savedEpicPct=localStorage.getItem(LS_EPIC_PCT);
+  const pctToUse=pctField||savedEpicPct;
+  lines.push('Project status: '+status);
+  lines.push('Project % complete: '+(pctToUse?pctToUse+'%':'(not calculated yet — run the Epic % complete tab)'));
+  if(status!=='On Track' && statusNote) lines.push('Status reason/mitigation notes: '+statusNote);
+  lines.push('Intro line: '+intro);
+  lines.push('');
+  lines.push('Goal 1 — Consolidate & Modernize the Legacy Platform:');
+  lines.push(g1||'(nothing this week — omit this section)');
+  lines.push('');
+  lines.push('Goal 2 — Enhance End-User Experience & Satisfaction:');
+  lines.push(g2||'(nothing this week — omit this section)');
+  lines.push('');
+  lines.push('Goal 3 — Improve Operational & Development Efficiency:');
+  lines.push(g3||'(nothing this week — omit this section)');
+  lines.push('');
+  lines.push('Goal 4 — Ensure Reliability, Compliance & Visibility:');
+  lines.push(g4||'(nothing this week — omit this section)');
+  lines.push('');
+  if(includeBudget){
+    lines.push('Budget Overview:');
+    lines.push('Legacy Maintenance');
+    lines.push('- FY26 Budget Total: '+document.getElementById('b-leg-budget').value);
+    lines.push('- Cost to Date: '+document.getElementById('b-leg-actual').value);
+    lines.push('- Remaining: '+document.getElementById('b-leg-remain').value);
+    lines.push('Modernization Development');
+    lines.push('- Total Budget: '+document.getElementById('b-mod-budget').value);
+    lines.push('- Cost to Date: '+document.getElementById('b-mod-actual').value);
+    lines.push('- Remaining: '+document.getElementById('b-mod-remain').value);
+    lines.push('- Estimated to Complete: '+document.getElementById('b-mod-etc').value);
+    lines.push('- Projected Variance: '+document.getElementById('b-mod-var').value);
+  } else {
+    lines.push('Budget: no new invoice this week — do not include a Budget Overview section.');
+  }
+  lines.push('');
+  lines.push('Risks: '+(risks||'No new risks identified this sprint.'));
+  lines.push('');
+  lines.push('Next steps: '+(next||'(derive from sprint context)'));
+  if(other){lines.push('');lines.push('Other notes: '+other);}
+  lines.push('');
+  lines.push('Please write this weekly CTS/O project update email using the writing guide and format we have used before.');
+
+  const text=lines.join('\n');
+  navigator.clipboard.writeText(text).then(()=>{
+    const el=document.getElementById('eg-out');
+    el.innerHTML='<div style="background:#eaf6ee;border-radius:8px;padding:10px 14px;font-size:13px;color:#1e6e3a">&#10003; Copied! Paste this into a Claude chat and ask for the email draft.</div><div class="mono" style="margin-top:10px;white-space:pre-wrap">'+text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+  }).catch(()=>{
+    showErr('eg-err','Could not copy automatically — select and copy the text below manually.');
+    const el=document.getElementById('eg-out');
+    el.innerHTML='<div class="mono" style="white-space:pre-wrap">'+text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>';
+  });
+}
+
+async function generateEmail(){
+  const status=document.getElementById('e-status').value;const statusNote=document.getElementById('e-status-note')?.value?.trim()||'';
+  const intro=document.getElementById('e-intro').value.trim();const g1=document.getElementById('e-g1').value.trim();const g2=document.getElementById('e-g2').value.trim();const g3=document.getElementById('e-g3').value.trim();const g4=document.getElementById('e-g4').value.trim();
+  const risks=document.getElementById('e-risks').value.trim();const next=document.getElementById('e-next').value.trim();const other=document.getElementById('e-other').value.trim();
+  const includeBudget=document.getElementById('e-budget-toggle').value==='yes';
+  if(!g1&&!g2&&!g3&&!g4){showErr('eg-err','Add notes for at least one goal area before generating.');return;}
+  clearErr('eg-err');
+  let budgetBlock='';
+  if(includeBudget){budgetBlock=`Legacy Maintenance\n- FY26 Budget Total: ${document.getElementById('b-leg-budget').value}\n- Cost to Date: ${document.getElementById('b-leg-actual').value}\n- Remaining: ${document.getElementById('b-leg-remain').value}\n\nModernization Development\n- Total Budget: ${document.getElementById('b-mod-budget').value}\n- Cost to Date: ${document.getElementById('b-mod-actual').value}\n- Remaining: ${document.getElementById('b-mod-remain').value}\n- Estimated to Complete: ${document.getElementById('b-mod-etc').value}\n- Projected Variance: ${document.getElementById('b-mod-var').value}`;}
+  const sprintCtx=S_PARSED?`Sprint: ${S_PARSED.sprint_name}. Goals: ${S_PARSED.goals.join('; ')}. Completed: ${S_PARSED.completed.map(i=>i.summary).filter(Boolean).slice(0,12).join('; ')}.`:'No sprint report parsed.';
+  const prompt=`Write a weekly project status email for the CTS/O Modernization project at CCA Global Partners. Project manager: Morgan Solomon.\n\nRULES:\n- Professional, neutral tone — positive when genuinely warranted, not manufactured\n- Short and tight. Outcome-focused. No Jira ticket numbers ever.\n- Use specific wording from ticket titles/themes when provided\n- Only include a goal section if content is explicitly provided. If a goal says OMIT, skip it entirely.\n- Next Steps: 2-4 short paragraph-style sentences (not bullet labels). Upcoming work only.\n- Section headers exactly: "Value Added", "Budget Overview", "Risks", "Next Steps"\n- Sub-headers under Value Added exactly: "Consolidate & Modernize the Legacy Platform", "Enhance End-User Experience & Satisfaction", "Improve Operational & Development Efficiency", "Ensure Reliability, Compliance & Visibility"\n- Do not add a sign-off or signature line.\n\nPROJECT STATUS: ${status}\n${status==='On Track'?'Write "Project Status: On Track" on its own line after the intro. No further explanation.':`Write "Project Status: ${status}" on its own line after the intro. Then 2-3 direct sentences on why and the mitigation plan. Based on: "${statusNote||'(no detail — write neutral placeholder)'}"`}\n\nSPRINT CONTEXT:\n${sprintCtx}\n\nGOAL INPUTS:\nGoal 1 — Consolidate & Modernize: ${g1||'OMIT'}\nGoal 2 — End-User Experience: ${g2||'OMIT'}\nGoal 3 — Operational Efficiency: ${g3||'OMIT'}\nGoal 4 — Reliability & Visibility: ${g4||'OMIT'}\n\n${includeBudget?'BUDGET:\n'+budgetBlock:'No Budget Overview section.'}\n\nRISKS: ${risks||'No new risks identified this sprint.'}\nNEXT STEPS: ${next||'Derive from sprint context.'}\n${other?'CONTEXT: '+other:''}\n\nStart with the intro line. No subject line or signature.`;
+  const outEl=document.getElementById('eg-out');outEl.innerHTML='<p style="font-size:13px;color:#666"><span class="spinner"></span> Generating draft...</p>';
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+    const data=await resp.json();const draft=data.content?.find(b=>b.type==='text')?.text||'';
+    if(!draft)throw new Error('Empty response');
+    outEl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><p style="font-size:13px;font-weight:500;margin:0">Email draft</p><button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('draft-text').innerText).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy draft',2000)})">Copy draft</button></div><div class="draft" id="draft-text">${draft.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      ${S_PARSED&&CURRENT_NEW_KEYS.length?`<div style="margin-top:12px;padding:10px 14px;background:#f8f8f8;border-radius:8px">
+        <p style="font-size:12px;color:#666;margin:0 0 6px">Once you've sent this email, mark these ${CURRENT_NEW_KEYS.length} item(s) as covered so next week's pre-fill won't repeat them.</p>
+        <button class="btn" style="font-size:12px" onclick="markCurrentItemsReported()">✓ Mark items as covered (I'm sending this)</button>
+        <span id="mark-covered-confirm" style="display:none;font-size:12px;color:#1e6e3a;margin-left:8px">✓ Marked — excluded from future pre-fills this sprint</span>
+      </div>`:''}
+      <p style="font-size:11px;color:#888;margin-top:8px">Review, adjust, then paste into Outlook.</p>`;
+  }catch(err){showErr('eg-err','Could not generate: '+err.message);outEl.innerHTML='';}
+}
+
+function markCurrentItemsReported(){
+  if(!S_PARSED||!CURRENT_NEW_KEYS.length)return;
+  addReportedItems(S_PARSED.sprint_number, CURRENT_NEW_KEYS);
+  const btn=document.querySelector('#eg-out button[onclick="markCurrentItemsReported()"]');
+  if(btn)btn.style.display='none';
+  const conf=document.getElementById('mark-covered-confirm');
+  if(conf)conf.style.display='inline';
+  // Refresh the coverage banner on the Sprint tab to reflect the update
+  if(S_PARSED){
+    const diff=computeNewVsReported(S_PARSED);
+    renderCoverageBanner(diff);
+  }
+}
+
+// ── INLINE EDIT ───────────────────────────────────────────────────────────────
+function startEdit(span){
+  if(span.querySelector('input'))return; // already editing
+  const field=span.dataset.field;
+  const sprint=parseInt(span.dataset.sprint);
+  const type=span.dataset.type||'number';
+  const step=span.dataset.step||'1';
+  const current=span.textContent.trim();
+  const input=document.createElement('input');
+  input.className='editable-input';
+  input.type=type;
+  if(step)input.step=step;
+  input.value=current;
+  input.style.width=type==='text'?'120px':'70px';
+  span.textContent='';
+  span.appendChild(input);
+  input.focus();
+  input.select();
+  const commit=()=>commitEdit(span,sprint,field,type,input.value);
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='Escape'){renderDashboard();} // cancel
+  });
+}
+
+function commitEdit(span,sprintNum,field,type,rawVal){
+  const val=type==='number'?parseFloat(rawVal)||0:rawVal.trim();
+  let data=loadSprints();
+  const idx=data.findIndex(d=>d.sprint===sprintNum);
+  if(idx<0)return;
+  // For integer fields, round
+  const intFields=['goals','goalsmet','committed','done','defects','value'];
+  data[idx][field]=intFields.includes(field)?Math.round(val):val;
+  saveSprints(data);
+  renderDashboard();
 }
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
 function cp(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent||el.innerText).then(()=>{});}
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.style.display='block';el.textContent=msg;}}
 function clearErr(id){const el=document.getElementById(id);if(el){el.style.display='none';el.textContent='';}}
+function showAddForm(){document.getElementById('f-sprint').value='';document.getElementById('f-release').value='';['f-goals','f-goalsmet','f-committed','f-done','f-cycle','f-lead','f-defects','f-value'].forEach(id=>document.getElementById(id).value='');document.getElementById('add-form').style.display='block';document.getElementById('add-form').scrollIntoView({behavior:'smooth'});}
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
+  loadSavedTotals();
+  ['b-leg-budget','b-mod-budget','b-mod-var'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.addEventListener('input',saveBudgetSettings);
+  });
   renderDashboard();
   restoreLastSprint();
   renderProcessedHistory();
-  if(isEmbedded){
-    const mb=document.getElementById('manage-btn-top');
-    if(mb)mb.style.display='none';
-  }
+  if(isEmbedded){const mb=document.getElementById('manage-btn-top');if(mb)mb.style.display='none';}
 });
 </script>
 </body>
