@@ -263,7 +263,6 @@ input[type=file]{display:none}
 <div class="page" id="pg3">
   <div style="background:#f8f8f8;border-radius:10px;padding:14px;margin-bottom:1rem">
     <p style="font-size:12px;font-weight:500;color:#555;margin-bottom:10px">Previous cost-to-date <span style="font-weight:400;color:#888">&mdash; saved automatically after each invoice</span></p>
-    <div class="frow"><span class="flbl">Legacy cost to date</span><div><input type="text" id="prev-leg" placeholder="e.g. $30,360" oninput="savePrevTotals()"><p class="hint">Running total before this invoice</p></div></div>
     <div class="frow"><span class="flbl">Modernization cost to date</span><div><input type="text" id="prev-mod" placeholder="e.g. $613,920" oninput="savePrevTotals()"><p class="hint">Running total before this invoice</p></div></div>
   </div>
   <div class="dz" id="dz-inv" onclick="document.getElementById('fi-i').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dropInv(event)">
@@ -295,11 +294,7 @@ input[type=file]{display:none}
   <div class="frow"><span class="flbl">Goal 4 &mdash; Reliability &amp; Visibility</span><textarea id="e-g4" rows="2" placeholder="Azure, monitoring, integrations... Leave blank to omit."></textarea></div>
   <div class="frow"><span class="flbl">Include budget?</span><select id="e-budget-toggle" onchange="toggleBudget()"><option value="no">No &mdash; no new invoice this week</option><option value="yes">Yes &mdash; new invoice received</option></select></div>
   <div class="budget-box" id="budget-fields" style="display:none">
-    <p class="sec" style="margin-top:0">Legacy Maintenance</p>
-    <div class="frow"><span class="flbl">FY26 budget total</span><input type="text" id="b-leg-budget" value="$85,000" oninput="recalcLegRemain()"></div>
-    <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-leg-actual" placeholder="e.g. $33,800" oninput="recalcLegRemain()"></div>
-    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-leg-remain" placeholder="e.g. $51,200"></div>
-    <p class="sec">Modernization Development</p>
+    <p class="sec" style="margin-top:0">Modernization Development</p>
     <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-mod-budget" value="$895,000" oninput="recalcModRemain()"></div>
     <div class="frow"><span class="flbl">Cost to date</span><input type="text" id="b-mod-actual" placeholder="e.g. $632,120" oninput="recalcModRemain()"></div>
     <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-mod-remain" placeholder="e.g. $167,880" oninput="recalcModETC()"></div>
@@ -308,6 +303,10 @@ input[type=file]{display:none}
       <p class="hint">Auto-calculated: Remaining + Projected Variance</p>
     </div></div>
     <div class="frow"><span class="flbl">Projected variance</span><input type="text" id="b-mod-var" value="$0" oninput="recalcModETC()"></div>
+    <p class="sec">FY27 Budget</p>
+    <div class="frow"><span class="flbl">Total budget</span><input type="text" id="b-fy27-budget" value="$665,600" oninput="recalcFy27()"></div>
+    <div class="frow"><span class="flbl">Cost to date</span><div><input type="text" id="b-fy27-actual" value="$0" oninput="recalcFy27()"><p class="hint">Enter manually once billing starts. While this is $0 the email says &ldquo;Not yet billing to this budget&rdquo;.</p></div></div>
+    <div class="frow"><span class="flbl">Remaining</span><input type="text" id="b-fy27-remain" readonly style="background:#eaf6ee;color:#1e6e3a;font-weight:500"></div>
   </div>
   <div class="frow"><span class="flbl">Risks</span><textarea id="e-risks" rows="2" placeholder="New risks or updates &mdash; leave blank for 'no new risks'"></textarea></div>
   <div class="frow"><span class="flbl">Next steps</span><div><textarea id="e-next" rows="3" placeholder="Upcoming work, UAT prep, releases..."></textarea><p class="hint">Claude writes as paragraph-style sentences</p></div></div>
@@ -362,7 +361,6 @@ function navTo(n,btn){manageNavTo(n,btn);}
 
 // ── SPRINT DATA STORE (localStorage) ──────────────────────────────────────
 const LS_SPRINTS='ctso_sprints_v1';
-const LS_LEG='ctso_prev_leg';
 const LS_MOD='ctso_prev_mod';
 const LS_BUDGET='ctso_budget_settings';
 // How ticket types roll up into the two sprint metrics — change here to redefine.
@@ -370,7 +368,7 @@ const FIX_TYPES=['Defect','Incident','Scope Change'];   // shown as "Fixes & Imp
 const VALUE_TYPES=['Story','Spike'];
 // Single source of truth for fallback values — only used when nothing is saved yet in this browser.
 // Update these whenever the approved budget changes.
-const BUDGET_DEFAULTS={legBudget:85000,modBudget:895000,modVar:0,legCost:76360,modCost:779800};
+const BUDGET_DEFAULTS={fy27Budget:665600,fy27Cost:0,modBudget:895000,modVar:0,modCost:828480};
 const LS_LAST_SPRINT='ctso_last_parsed_sprint';
 const LS_PROCESSED_INV='ctso_processed_invoices';
 const LS_REPORTED='ctso_reported_items_v1'; // {sprintNumber: [ticket keys already mentioned in an email]}
@@ -379,13 +377,21 @@ const LS_EPIC_PCT='ctso_epic_pct';
 
 // Seed data: sprints 21-27
 const SEED=[
-  {sprint:21,release:'Phase 1 release',goals:2,goalsmet:1,committed:47,done:28,cycle:5,    lead:73.9,  defects:12,value:12},
-  {sprint:22,release:'Phase 1 release',goals:3,goalsmet:1,committed:53,done:35,cycle:19.54,lead:89.83, defects:1, value:31},
-  {sprint:23,release:'Phase 1 release',goals:5,goalsmet:5,committed:45,done:45,cycle:7.025,lead:46.83, defects:16,value:32},
-  {sprint:24,release:'Release 1.1',    goals:2,goalsmet:2,committed:42,done:44,cycle:1.916,lead:3.875, defects:30,value:26},
-  {sprint:25,release:'Release 1.2',    goals:2,goalsmet:2,committed:37,done:46,cycle:1.96, lead:16.375,defects:10,value:34},
-  {sprint:26,release:'Release 1.3',    goals:3,goalsmet:3,committed:39,done:31,cycle:4.66, lead:36.375,defects:9, value:30},
-  {sprint:27,release:'Release 1.4',    goals:4,goalsmet:4,committed:47,done:45,cycle:3.25, lead:38.2,  defects:17,value:24},
+  {sprint:21,release:"Phase 1 release",goals:2,goalsmet:1,committed:47,done:28,cycle:5,lead:73.9,defects:6,value:25},
+  {sprint:22,release:"Phase 1 release",goals:3,goalsmet:1,committed:53,done:35,cycle:19.54,lead:89.83,defects:1,value:34},
+  {sprint:23,release:"Phase 1 release",goals:5,goalsmet:5,committed:45,done:45,cycle:7.025,lead:46.83,defects:18,value:40},
+  {sprint:24,release:"Release 1.1",goals:2,goalsmet:2,committed:42,done:44,cycle:1.916,lead:3.875,defects:24,value:15},
+  {sprint:25,release:"Release 1.2",goals:2,goalsmet:2,committed:37,done:46,cycle:1.96,lead:16.375,defects:14,value:32},
+  {sprint:26,release:"Release 1.3",goals:3,goalsmet:3,committed:39,done:31,cycle:4.66,lead:36.375,defects:1,value:30},
+  {sprint:27,release:"Release 1.4",goals:4,goalsmet:4,committed:47,done:49,cycle:3.25,lead:38.2,defects:22,value:27},
+  {sprint:28,release:"Release 1.5",goals:4,goalsmet:4,committed:44,done:45,cycle:3.625,lead:67,defects:14,value:31},
+  {sprint:29,release:"Release 1.6",goals:3,goalsmet:3,committed:44,done:44,cycle:4,lead:52.4,defects:15,value:29},
+  {sprint:30,release:"Release 1.7",goals:3,goalsmet:2,committed:47,done:32,cycle:3.1,lead:63,defects:19,value:13},
+  {sprint:31,release:"Release 1.8",goals:2,goalsmet:2,committed:40,done:42,cycle:5,lead:86.8,defects:9,value:33},
+  {sprint:32,release:"Release 1.9",goals:3,goalsmet:2,committed:37,done:29,cycle:3.67,lead:49.15,defects:4,value:25},
+  {sprint:33,release:"Release 1.10",goals:3,goalsmet:3,committed:41,done:41,cycle:3.37,lead:16.96,defects:27,value:14},
+  {sprint:34,release:"Release 1.11",goals:4,goalsmet:4,committed:41,done:41,cycle:2.5,lead:21.9,defects:15,value:26},
+  {sprint:35,release:"Release 1.4",goals:2,goalsmet:0,committed:41,done:0,cycle:0,lead:0,defects:28,value:13},
 ];
 
 const isEmbedded=(function(){try{return window.self!==window.top;}catch(e){return true;}})();
@@ -1028,7 +1034,7 @@ function parseInvoice(txt){
   // Line items — new format inserts a repeated "Product" name between the date range and Qty/Rate/Amount
   const rows=[];
   const re=/\[([^\]]+)\]\s+(.*?):?\s+([\w\s]+?)\s+\((\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})\)\s+(?:[\w\s\-]+?\s+)?(\d+\.\d{2})\s+\$[\d,.]+\s+\$([\d,]+)/g;
-  let m;while((m=re.exec(txt))!==null){const code=m[1].trim();rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,type:code.includes('CCA.11')?'MOD':'LEG',hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});}
+  let m;while((m=re.exec(txt))!==null){const code=m[1].trim();rows.push({invNum,invDate,start:m[4],end:m[5],person:m[3].trim(),code,type:code.includes('CCA.11')?'MOD':'OTHER',hrs:parseFloat(m[6]),rate:160,amt:parseInt(m[7].replace(/,/g,'')),notes:m[2].trim()});}
   if(!rows.length){showErr('i-err','Could not parse line items — PDF text layer may not be readable.');return;}
 
   const processed=getProcessedInvoices();
@@ -1088,8 +1094,7 @@ function forceReprocessInvoice(invNum){
 
 function fmt$(n){return '$'+Math.round(n).toLocaleString();}
 function loadSavedTotals(){
-  const leg=localStorage.getItem(LS_LEG);const mod=localStorage.getItem(LS_MOD);
-  document.getElementById('prev-leg').value=leg||fmt$(BUDGET_DEFAULTS.legCost);
+  const mod=localStorage.getItem(LS_MOD);
   document.getElementById('prev-mod').value=mod||fmt$(BUDGET_DEFAULTS.modCost);
   loadBudgetSettings();
 }
@@ -1097,25 +1102,27 @@ function loadSavedTotals(){
 function loadBudgetSettings(){
   let st={};try{st=JSON.parse(localStorage.getItem(LS_BUDGET)||'{}');}catch(e){}
   const d=BUDGET_DEFAULTS;
-  document.getElementById('b-leg-budget').value=fmt$(st.legBudget!=null?st.legBudget:d.legBudget);
+  document.getElementById('b-fy27-budget').value=fmt$(st.fy27Budget!=null?st.fy27Budget:d.fy27Budget);
+  document.getElementById('b-fy27-actual').value=fmt$(st.fy27Cost!=null?st.fy27Cost:d.fy27Cost);
   document.getElementById('b-mod-budget').value=fmt$(st.modBudget!=null?st.modBudget:d.modBudget);
   document.getElementById('b-mod-var').value=fmt$(st.modVar!=null?st.modVar:d.modVar);
+  recalcFy27();
   recalcModETC();
 }
 function saveBudgetSettings(){
   const num=id=>parseFloat((document.getElementById(id).value||'0').replace(/[^0-9.-]/g,''))||0;
-  localStorage.setItem(LS_BUDGET,JSON.stringify({legBudget:num('b-leg-budget'),modBudget:num('b-mod-budget'),modVar:num('b-mod-var')}));
+  localStorage.setItem(LS_BUDGET,JSON.stringify({fy27Budget:num('b-fy27-budget'),fy27Cost:num('b-fy27-actual'),modBudget:num('b-mod-budget'),modVar:num('b-mod-var')}));
 }
-function savePrevTotals(){const leg=document.getElementById('prev-leg').value.trim();const mod=document.getElementById('prev-mod').value.trim();if(leg)localStorage.setItem(LS_LEG,leg);if(mod)localStorage.setItem(LS_MOD,mod);}
+function savePrevTotals(){const mod=document.getElementById('prev-mod').value.trim();if(mod)localStorage.setItem(LS_MOD,mod);}
 function populateBudgetFromInvoice(rows){
-  const legAmt=rows.filter(r=>r.type==='LEG').reduce((s,r)=>s+r.amt,0);const modAmt=rows.filter(r=>r.type==='MOD').reduce((s,r)=>s+r.amt,0);
-  const prevLeg=parseFloat((document.getElementById('prev-leg').value||fmt$(BUDGET_DEFAULTS.legCost)).replace(/[^0-9.]/g,''))||0;const prevMod=parseFloat((document.getElementById('prev-mod').value||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
-  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||String(BUDGET_DEFAULTS.legBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.legBudget;const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
-  const newLeg=prevLeg+legAmt,newMod=prevMod+modAmt;
-  localStorage.setItem(LS_LEG,fmt$(newLeg));localStorage.setItem(LS_MOD,fmt$(newMod));
-  document.getElementById('prev-leg').value=fmt$(newLeg);document.getElementById('prev-mod').value=fmt$(newMod);
+  const modAmt=rows.filter(r=>r.type==='MOD').reduce((s,r)=>s+r.amt,0);
+  const prevMod=parseFloat((document.getElementById('prev-mod').value||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
+  const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
+  const newMod=prevMod+modAmt;
+  localStorage.setItem(LS_MOD,fmt$(newMod));
+  document.getElementById('prev-mod').value=fmt$(newMod);
   const setF=(id,val)=>{const el=document.getElementById(id);if(el){el.value=val;el.classList.add('autofilled');}};
-  setF('b-leg-actual',fmt$(newLeg));setF('b-leg-remain',fmt$(legBudget-newLeg));setF('b-mod-actual',fmt$(newMod));setF('b-mod-remain',fmt$(modBudget-newMod));
+  setF('b-mod-actual',fmt$(newMod));setF('b-mod-remain',fmt$(modBudget-newMod));
   recalcModETC();
   document.getElementById('e-budget-toggle').value='yes';document.getElementById('budget-fields').style.display='block';document.getElementById('inv-notice').style.display='block';
 }
@@ -1136,10 +1143,10 @@ function refreshPctComplete(){
   }
 }
 
-function recalcLegRemain(){
-  const budget=parseFloat((document.getElementById('b-leg-budget').value||'0').replace(/[^0-9.-]/g,''))||0;
-  const actual=parseFloat((document.getElementById('b-leg-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
-  document.getElementById('b-leg-remain').value=fmt$(budget-actual);
+function recalcFy27(){
+  const budget=parseFloat((document.getElementById('b-fy27-budget').value||'0').replace(/[^0-9.-]/g,''))||0;
+  const actual=parseFloat((document.getElementById('b-fy27-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
+  document.getElementById('b-fy27-remain').value=fmt$(budget-actual);
 }
 
 function recalcModRemain(){
@@ -1163,22 +1170,16 @@ function populateBudgetFromSaved(){
     if(saved)pctEl.value=saved;
   }
   // Shows current running totals in the Email tab regardless of whether an invoice was uploaded this session
-  const prevLeg=parseFloat((localStorage.getItem(LS_LEG)||fmt$(BUDGET_DEFAULTS.legCost)).replace(/[^0-9.]/g,''))||0;
   const prevMod=parseFloat((localStorage.getItem(LS_MOD)||fmt$(BUDGET_DEFAULTS.modCost)).replace(/[^0-9.]/g,''))||0;
-  const legBudget=parseFloat((document.getElementById('b-leg-budget').value||String(BUDGET_DEFAULTS.legBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.legBudget;
   const modBudget=parseFloat((document.getElementById('b-mod-budget').value||String(BUDGET_DEFAULTS.modBudget)).replace(/[^0-9.]/g,''))||BUDGET_DEFAULTS.modBudget;
-  const actEl=document.getElementById('b-leg-actual');
   // Only auto-fill if the field is currently empty — never clobber a manual edit or fresh invoice fill
-  if(actEl && !actEl.value.trim()){
-    actEl.value=fmt$(prevLeg);
-    document.getElementById('b-leg-remain').value=fmt$(legBudget-prevLeg);
-  }
   const modActEl=document.getElementById('b-mod-actual');
   if(modActEl && !modActEl.value.trim()){
     modActEl.value=fmt$(prevMod);
     document.getElementById('b-mod-remain').value=fmt$(modBudget-prevMod);
     recalcModETC();
   }
+  recalcFy27();
   // Show a subtle note so it's clear these are last-known totals, not necessarily this week's invoice
   const notice=document.getElementById('inv-notice');
   if(notice && notice.style.display!=='block'){
@@ -1188,8 +1189,8 @@ function populateBudgetFromSaved(){
   }
 }
 function renderInvoice(rows,invNum,invDate,wasAdded){
-  const mod=rows.filter(r=>r.type==='MOD'),leg=rows.filter(r=>r.type==='LEG');
-  const tMod=mod.reduce((s,r)=>s+r.amt,0),tLeg=leg.reduce((s,r)=>s+r.amt,0),tAll=rows.reduce((s,r)=>s+r.amt,0);
+  const mod=rows.filter(r=>r.type==='MOD'),other=rows.filter(r=>r.type==='OTHER');
+  const tMod=mod.reduce((s,r)=>s+r.amt,0),tOther=other.reduce((s,r)=>s+r.amt,0),tAll=rows.reduce((s,r)=>s+r.amt,0);
   const byP={};mod.forEach(r=>{const k=r.person.split(' ')[0];if(!byP[k])byP[k]={name:r.person,hrs:0,amt:0};byP[k].hrs+=r.hrs;byP[k].amt+=r.amt;});
   const rowMap={Adam:5,Emily:6,Luiz:7,Tyler:8,Yousef:9};
   const tsv=['Invoice #\tDate\tPeriod Start\tPeriod End\tPerson\tContract\tType\tHours\tRate\tAmount\tNotes\tProcessed Date',...rows.map(r=>[r.invNum,r.invDate,r.start,r.end,r.person,r.code,r.type,r.hrs,r.rate,r.amt,r.notes,''].join('\t'))].join('\n');
@@ -1200,13 +1201,13 @@ function renderInvoice(rows,invNum,invDate,wasAdded){
 
   document.getElementById('i-out').innerHTML=`
     ${banner}
-    <div class="grid-cards">${[['MOD','$'+tMod.toLocaleString(),'color:#1254a0'],['LEG','$'+tLeg.toLocaleString(),'color:#1e6e3a'],['Total','$'+tAll.toLocaleString(),'']].map(([l,v,s])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="font-size:16px;${s}">${v}</p></div>`).join('')}</div>
+    <div class="grid-cards">${[['MOD','$'+tMod.toLocaleString(),'color:#1254a0'],['Other (non-Modernization)','$'+tOther.toLocaleString(),'color:#1e6e3a'],['Total','$'+tAll.toLocaleString(),'']].map(([l,v,s])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="font-size:16px;${s}">${v}</p></div>`).join('')}</div>
     <p class="sec">Burn by person — MOD amounts</p>
     <div style="border:1px solid #eee;border-radius:8px;overflow:hidden;margin-bottom:1rem"><table class="etable"><thead><tr><th>Person</th><th>Row</th><th style="text-align:right">Hours</th><th style="text-align:right">MOD amount</th></tr></thead>
-    <tbody>${Object.entries(byP).map(([k,p])=>`<tr><td style="font-weight:500">${p.name}</td><td>${rowMap[k]||'?'}</td><td style="text-align:right">${p.hrs.toFixed(2)}</td><td style="text-align:right;font-weight:500;color:#1254a0">$${p.amt.toLocaleString()}</td></tr>`).join('')}${leg.length?`<tr style="background:#f8f8f8"><td colspan="4" style="font-size:11px;color:#888;font-style:italic">LEG lines: Invoice Log only</td></tr>`:''}</tbody></table></div>
+    <tbody>${Object.entries(byP).map(([k,p])=>`<tr><td style="font-weight:500">${p.name}</td><td>${rowMap[k]||'?'}</td><td style="text-align:right">${p.hrs.toFixed(2)}</td><td style="text-align:right;font-weight:500;color:#1254a0">$${p.amt.toLocaleString()}</td></tr>`).join('')}${other.length?`<tr style="background:#f8f8f8"><td colspan="4" style="font-size:11px;color:#888;font-style:italic">Other contract lines: Invoice Log only</td></tr>`:''}</tbody></table></div>
     <p class="sec">Invoice log rows</p><div id="inv-tsv" style="display:none">${tsv}</div>
     <button class="btn" onclick="cp('inv-tsv')">Copy all rows for Excel paste</button>
-    <p class="hint" style="margin-top:4px">Paste into Legacy Budget tab at next empty row</p>`;
+    <p class="hint" style="margin-top:4px">Paste into the Invoice Log tab at the next empty row</p>`;
 }
 
 // ── EMAIL ────────────────────────────────────────────────────────────────────
@@ -1251,16 +1252,21 @@ function copyForClaude(){
   lines.push('');
   if(includeBudget){
     lines.push('Budget Overview:');
-    lines.push('Legacy Maintenance');
-    lines.push('- FY26 Budget Total: '+document.getElementById('b-leg-budget').value);
-    lines.push('- Cost to Date: '+document.getElementById('b-leg-actual').value);
-    lines.push('- Remaining: '+document.getElementById('b-leg-remain').value);
     lines.push('Modernization Development');
     lines.push('- Total Budget: '+document.getElementById('b-mod-budget').value);
     lines.push('- Cost to Date: '+document.getElementById('b-mod-actual').value);
     lines.push('- Remaining: '+document.getElementById('b-mod-remain').value);
     lines.push('- Estimated to Complete: '+document.getElementById('b-mod-etc').value);
     lines.push('- Projected Variance: '+document.getElementById('b-mod-var').value);
+    const fy27Cost=parseFloat((document.getElementById('b-fy27-actual').value||'0').replace(/[^0-9.-]/g,''))||0;
+    lines.push('FY27 Budget');
+    lines.push('- Total Budget: '+document.getElementById('b-fy27-budget').value);
+    if(fy27Cost>0){
+      lines.push('- Cost to Date: '+document.getElementById('b-fy27-actual').value);
+      lines.push('- Remaining: '+document.getElementById('b-fy27-remain').value);
+    } else {
+      lines.push('- Not yet billing to this budget');
+    }
   } else {
     lines.push('Budget: no new invoice this week — do not include a Budget Overview section.');
   }
@@ -1291,7 +1297,7 @@ async function generateEmail(){
   if(!g1&&!g2&&!g3&&!g4){showErr('eg-err','Add notes for at least one goal area before generating.');return;}
   clearErr('eg-err');
   let budgetBlock='';
-  if(includeBudget){budgetBlock=`Legacy Maintenance\n- FY26 Budget Total: ${document.getElementById('b-leg-budget').value}\n- Cost to Date: ${document.getElementById('b-leg-actual').value}\n- Remaining: ${document.getElementById('b-leg-remain').value}\n\nModernization Development\n- Total Budget: ${document.getElementById('b-mod-budget').value}\n- Cost to Date: ${document.getElementById('b-mod-actual').value}\n- Remaining: ${document.getElementById('b-mod-remain').value}\n- Estimated to Complete: ${document.getElementById('b-mod-etc').value}\n- Projected Variance: ${document.getElementById('b-mod-var').value}`;}
+  if(includeBudget){budgetBlock=`Modernization Development\n- Total Budget: ${document.getElementById('b-mod-budget').value}\n- Cost to Date: ${document.getElementById('b-mod-actual').value}\n- Remaining: ${document.getElementById('b-mod-remain').value}\n- Estimated to Complete: ${document.getElementById('b-mod-etc').value}\n- Projected Variance: ${document.getElementById('b-mod-var').value}\n\nFY27 Budget\n- Total Budget: ${document.getElementById('b-fy27-budget').value}\n- Cost to Date: ${document.getElementById('b-fy27-actual').value}\n- Remaining: ${document.getElementById('b-fy27-remain').value}`;}
   const sprintCtx=S_PARSED?`Sprint: ${S_PARSED.sprint_name}. Goals: ${S_PARSED.goals.join('; ')}. Completed: ${S_PARSED.completed.map(i=>i.summary).filter(Boolean).slice(0,12).join('; ')}.`:'No sprint report parsed.';
   const prompt=`Write a weekly project status email for the CTS/O Modernization project at CCA Global Partners. Project manager: Morgan Solomon.\n\nRULES:\n- Professional, neutral tone — positive when genuinely warranted, not manufactured\n- Short and tight. Outcome-focused. No Jira ticket numbers ever.\n- Use specific wording from ticket titles/themes when provided\n- Only include a goal section if content is explicitly provided. If a goal says OMIT, skip it entirely.\n- Next Steps: 2-4 short paragraph-style sentences (not bullet labels). Upcoming work only.\n- Section headers exactly: "Value Added", "Budget Overview", "Risks", "Next Steps"\n- Sub-headers under Value Added exactly: "Consolidate & Modernize the Legacy Platform", "Enhance End-User Experience & Satisfaction", "Improve Operational & Development Efficiency", "Ensure Reliability, Compliance & Visibility"\n- Do not add a sign-off or signature line.\n\nPROJECT STATUS: ${status}\n${status==='On Track'?'Write "Project Status: On Track" on its own line after the intro. No further explanation.':`Write "Project Status: ${status}" on its own line after the intro. Then 2-3 direct sentences on why and the mitigation plan. Based on: "${statusNote||'(no detail — write neutral placeholder)'}"`}\n\nSPRINT CONTEXT:\n${sprintCtx}\n\nGOAL INPUTS:\nGoal 1 — Consolidate & Modernize: ${g1||'OMIT'}\nGoal 2 — End-User Experience: ${g2||'OMIT'}\nGoal 3 — Operational Efficiency: ${g3||'OMIT'}\nGoal 4 — Reliability & Visibility: ${g4||'OMIT'}\n\n${includeBudget?'BUDGET:\n'+budgetBlock:'No Budget Overview section.'}\n\nRISKS: ${risks||'No new risks identified this sprint.'}\nNEXT STEPS: ${next||'Derive from sprint context.'}\n${other?'CONTEXT: '+other:''}\n\nStart with the intro line. No subject line or signature.`;
   const outEl=document.getElementById('eg-out');outEl.innerHTML='<p style="font-size:13px;color:#666"><span class="spinner"></span> Generating draft...</p>';
@@ -1370,7 +1376,7 @@ function showAddForm(){document.getElementById('f-sprint').value='';document.get
 // ── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
   loadSavedTotals();
-  ['b-leg-budget','b-mod-budget','b-mod-var'].forEach(id=>{
+  ['b-fy27-budget','b-fy27-actual','b-mod-budget','b-mod-var'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.addEventListener('input',saveBudgetSettings);
   });
   renderDashboard();
