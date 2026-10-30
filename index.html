@@ -16,6 +16,20 @@ h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 .manage-btn{font-size:12px;padding:5px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#555;transition:all .15s}
 .manage-btn:hover{background:#f0f0f0;color:#1a1a1a}
 .manage-btn.on{background:#1a3a6b;color:#fff;border-color:#1a3a6b}
+.view-tabs{display:flex;gap:6px;margin-bottom:1rem}
+table.data-tbl.fin{min-width:0}
+table.data-tbl.fin td:first-child{text-align:left}
+.fin-add{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px}
+.fin-add label{font-size:11px;color:#888;display:block;margin-bottom:2px}
+.fin-add input.fa{width:112px;font-size:12px;padding:5px 8px}
+.fin-scroll{max-height:340px;overflow:auto;border:1px solid #eee;border-radius:8px}
+.vt{font-size:13px;padding:6px 18px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666}
+.vt.on{background:#1a3a6b;color:#fff;border-color:#1a3a6b;font-weight:500}
+.fin-note{font-size:12px;border-radius:8px;padding:8px 12px;margin-bottom:10px}
+.fin-note.info{background:#e3f0fd;color:#1254a0}
+.fin-note.warn{background:#fff8e1;color:#7a5c00}
+.chart-wrap.tall{height:250px}
+.fin-sub{font-size:11px;color:#888;margin:-2px 0 8px}
 .tab{font-size:13px;padding:6px 14px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;transition:all .15s}
 .tab:hover{background:#f5f5f5}
 .tab.on{background:#1a3a6b;color:#fff;font-weight:500;border-color:#1a3a6b}
@@ -35,7 +49,8 @@ h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 .goal-item{font-size:13px;color:#333;display:flex;align-items:flex-start;gap:8px}
 .goal-item::before{content:"•";color:#1a3a6b;font-weight:bold;flex-shrink:0;margin-top:1px}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
-@media(max-width:700px){.charts-grid{grid-template-columns:1fr}}
+#fin-cards{grid-template-columns:repeat(4,1fr)}
+@media(max-width:700px){.charts-grid{grid-template-columns:1fr}#fin-cards{grid-template-columns:repeat(2,1fr)}}
 .chart-card{background:#fff;border:1px solid #eee;border-radius:10px;padding:16px}
 .chart-card h3{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:6px}
 .goal-banner{border-radius:6px;padding:5px 10px;font-size:12px;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:6px}
@@ -114,11 +129,17 @@ input[type=file]{display:none}
   <button class="manage-btn" id="mb2" onclick="manageNavTo(2,this)">Epic % complete</button>
   <button class="manage-btn" id="mb3" onclick="manageNavTo(3,this)">Invoice</button>
   <button class="manage-btn" id="mb4" onclick="manageNavTo(4,this)">Weekly email</button>
+  <button class="manage-btn" id="mb5" onclick="manageNavTo(5,this)">Financial data</button>
   <button class="manage-btn" style="margin-left:auto;color:#999" onclick="manageNavTo(0,null)">← Back to Dashboard</button>
 </div>
 
 <!-- ══ DASHBOARD ══════════════════════════════════════════════════════════ -->
 <div class="page on" id="pg0">
+  <div class="view-tabs" id="view-tabs">
+    <button class="vt on" id="vt-delivery" onclick="showDashView('delivery')">Delivery</button>
+    <button class="vt" id="vt-fin" onclick="showDashView('fin')">Financials</button>
+  </div>
+  <div id="dash-delivery">
   <!-- Metric cards -->
   <div class="metric-cards" id="dash-cards">
     <div class="metric-card"><p class="mc-lbl">Sprint</p><p class="mc-val" id="dc-sprint">—</p></div>
@@ -186,6 +207,24 @@ input[type=file]{display:none}
     </div>
 
   </div><!-- /charts-grid -->
+  </div><!-- /dash-delivery -->
+
+  <!-- ══ FINANCIALS VIEW (data comes from this browser only) ══ -->
+  <div id="dash-fin" style="display:none">
+    <div id="fin-empty" class="fin-note info" style="display:none">No financial data in this browser yet. Open <strong>Manage &rarr; Financial data</strong> and import your history file.</div>
+    <div id="fin-body">
+      <div class="metric-cards" id="fin-cards"></div>
+      <div id="fin-notes"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><h3>Modernization &mdash; Cumulative Spend</h3><p class="fin-sub" id="fsub-mod"></p><div class="chart-wrap tall"><canvas id="fchart-mod"></canvas></div></div>
+        <div class="chart-card"><h3>Legacy &mdash; Cumulative Spend (FY26)</h3><p class="fin-sub" id="fsub-leg"></p><div class="chart-wrap tall"><canvas id="fchart-leg"></canvas></div></div>
+        <div class="chart-card"><h3>Spend vs. % Complete</h3><p class="fin-sub" id="fsub-pct"></p><div class="chart-wrap tall"><canvas id="fchart-pct"></canvas></div></div>
+        <div class="chart-card"><h3>Burn by Person &mdash; Monthly</h3><p class="fin-sub" id="fsub-burn"></p><div class="chart-wrap tall"><canvas id="fchart-burn"></canvas></div></div>
+      </div>
+      <p class="sec" style="margin-top:1.25rem">Burn by person &mdash; summary</p>
+      <div id="fin-person-table"></div>
+    </div>
+  </div>
 
 </div>
 
@@ -320,6 +359,64 @@ input[type=file]{display:none}
   <div id="eg-out" style="margin-top:1.25rem"></div>
 </div>
 
+<!-- ══ FINANCIAL DATA ═════════════════════════════════════════════════════ -->
+<div class="page" id="pg5">
+  <div class="fin-note info">Financial data is stored only in this browser (plus any file you save yourself). It is never published with the page &mdash; don't upload the history file to GitHub.</div>
+  <p class="sec" style="margin-top:0">Status</p>
+  <p id="fin-data-summary" style="font-size:13px;margin-bottom:1rem"></p>
+
+  <p class="sec">Import history</p>
+  <input type="file" id="fi-fin" accept=".json" onchange="importFinFile(this.files[0])">
+  <button class="btn" onclick="document.getElementById('fi-fin').click()">Choose CTSO_Financial_History.json&hellip;</button>
+  <div id="fin-import-msg" style="font-size:12px;margin-top:8px"></div>
+  <p class="hint">Importing replaces the invoices and monthly burn here with the file's (invoices recorded since the file was made are kept; % complete points are merged). Invoices you upload on the Invoice tab are added automatically.</p>
+
+  <p class="sec">Edit history <span style="text-transform:none;letter-spacing:0;color:#aaa">&mdash; click any value to edit it, like the sprint Source Data table</span></p>
+  <div class="view-tabs" id="fin-edit-tabs">
+    <button class="vt on" id="fet-inv" onclick="showFinEdit('inv')">Invoices</button>
+    <button class="vt" id="fet-burn" onclick="showFinEdit('burn')">Burn by person</button>
+    <button class="vt" id="fet-pct" onclick="showFinEdit('pct')">% complete</button>
+  </div>
+  <div id="fin-edit-msg" style="font-size:12px;min-height:16px;margin-bottom:8px"></div>
+
+  <div id="fin-edit-inv">
+    <div class="fin-add">
+      <div><label>Invoice #</label><input class="fa" type="text" id="fin-add-inv" placeholder="10000999"></div>
+      <div><label>Invoice date</label><input class="fa" type="date" id="fin-add-date"></div>
+      <div><label>Modernization $</label><input class="fa" type="number" id="fin-add-mod" placeholder="0"></div>
+      <div><label>Legacy $</label><input class="fa" type="number" id="fin-add-leg" placeholder="0"></div>
+      <div><label>Other $</label><input class="fa" type="number" id="fin-add-oth" placeholder="0"></div>
+      <button class="btn" onclick="finAddInvoiceUI()">Add invoice</button>
+    </div>
+    <div class="fin-scroll" id="fin-tbl-inv"></div>
+    <p class="hint">Drives the Modernization and Legacy spend lines. Modernization excludes Discovery. Removing an invoice also removes any burn recorded from its upload; burn by person is otherwise edited in its own tab.</p>
+  </div>
+
+  <div id="fin-edit-burn" style="display:none">
+    <div class="fin-add">
+      <div><label>Add a month</label><input class="fa" type="month" id="fin-add-month"></div>
+      <button class="btn" onclick="finAddMonthUI()">Add month</button>
+      <div style="margin-left:14px"><label>Add a person (first name)</label><input class="fa" type="text" id="fin-add-person" placeholder="e.g. Sam"></div>
+      <button class="btn" onclick="finAddPersonUI()">Add person</button>
+    </div>
+    <div class="fin-scroll" id="fin-tbl-burn"></div>
+    <p class="hint">Newest month first. Amounts are by service period, the same as your tracker's Burn by Person tab. Edits here don't change the invoice list.</p>
+  </div>
+
+  <div id="fin-edit-pct" style="display:none">
+    <textarea id="fin-pct-input" rows="3" placeholder="Add several at once &mdash; one per line: date, percent  (e.g. 10/16/2026, 86.6)"></textarea>
+    <button class="btn" style="margin-top:8px" onclick="addPctLines()">Add points</button>
+    <div id="fin-pct-msg" style="font-size:12px;margin:8px 0"></div>
+    <div class="fin-scroll" id="fin-tbl-pct"></div>
+    <p class="hint">Each time you calculate % complete on the Epic tab it's recorded here automatically.</p>
+  </div>
+
+  <p class="sec">Backup</p>
+  <button class="btn" onclick="exportFin()">Copy all financial data (backup)</button>
+  <button class="btn" style="margin-left:6px;color:#c00" onclick="clearFin()">Clear financial data&hellip;</button>
+  <div id="fin-backup-out" style="margin-top:10px"></div>
+</div>
+
 </div><!-- /container -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -350,6 +447,8 @@ function manageNavTo(n,btn){
     document.getElementById('manage-drawer').classList.remove('open');
     document.getElementById('manage-label').textContent='Manage';
   }
+  if(n===5){renderFinData();}
+  if(n===0){const df=document.getElementById('dash-fin');if(df&&df.style.display!=='none')renderFinancials();}
   if(n===4){
     // Opening Weekly Email tab — always show latest known budget, invoice or not
     populateBudgetFromSaved();
@@ -368,6 +467,7 @@ const FIX_TYPES=['Defect','Incident','Scope Change'];   // shown as "Fixes & Imp
 const VALUE_TYPES=['Story','Spike'];
 // Single source of truth for fallback values — only used when nothing is saved yet in this browser.
 // Update these whenever the approved budget changes.
+const LEGACY_FY26_BUDGET=85000;
 const BUDGET_DEFAULTS={fy27Budget:665600,fy27Cost:0,modBudget:895000,modVar:0,modCost:828480};
 const LS_LAST_SPRINT='ctso_last_parsed_sprint';
 const LS_PROCESSED_INV='ctso_processed_invoices';
@@ -971,6 +1071,7 @@ function renderEpicsWithAdj(ipAdjPct){
   const equivPts=total?Math.round(total*adjFraction*10)/10:0;
 
   localStorage.setItem(LS_EPIC_PCT, pct);
+  recordPct(pct);
   const epicPctEl=document.getElementById('dc-epicpct');
   if(epicPctEl){epicPctEl.textContent=pct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
 
@@ -1039,6 +1140,7 @@ function parseInvoice(txt){
 
   const processed=getProcessedInvoices();
   const already=processed.find(p=>p.invNum===invNum);
+  recordFinancials(rows,invNum,invDate);   // feeds the Financials dashboard; repeats are ignored
 
   document.getElementById('dz-inv').className='dz ok';
   document.getElementById('dz-inv').innerHTML=`<p style="font-size:14px;font-weight:500;color:#1e6e3a;margin-bottom:4px">&#10003; Invoice #${invNum} parsed</p><p style="font-size:12px;color:#555">${rows.length} line items</p>`;
@@ -1367,6 +1469,376 @@ function commitEdit(span,sprintNum,field,type,rawVal){
   renderDashboard();
 }
 
+
+// ══ FINANCIALS BEGIN — data lives in this browser only; nothing financial is baked into the page ══
+const LS_FIN='ctso_fin_v1';
+const PERSON_COLORS={Adam:'#2d5fa6',Emily:'#d98c5f',Luiz:'#2F575D',Tyler:'#e0b84f',Yousef:'#7aa58f'};
+const PERSON_ORDER=['Adam','Emily','Luiz','Tyler','Yousef'];
+function money(n){return (n<0?'-$':'$')+Math.abs(Math.round(n)).toLocaleString();}
+function todayISO(){const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');}
+function isoFromUS(s){const m=String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);return m?m[3]+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0'):null;}
+function dateMs(iso){const a=iso.split('-').map(Number);return Date.UTC(a[0],a[1]-1,a[2]);}
+function msLabel(ms){return new Date(ms).toLocaleDateString('en-US',{month:'short',year:'2-digit',timeZone:'UTC'});}
+function msFull(ms){return new Date(ms).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'});}
+function monthLabel(m){const a=m.split('-').map(Number);return new Date(Date.UTC(a[0],a[1]-1,1)).toLocaleDateString('en-US',{month:'short',year:'2-digit',timeZone:'UTC'});}
+function loadFin(){
+  try{const f=JSON.parse(localStorage.getItem(LS_FIN)||'null');if(f&&Array.isArray(f.spend))return {spend:f.spend,burnBase:f.burnBase||{},burnEvents:f.burnEvents||[],pct:f.pct||[]};}catch(e){}
+  return {spend:[],burnBase:{},burnEvents:[],pct:[]};
+}
+function saveFin(f){localStorage.setItem(LS_FIN,JSON.stringify(f));}
+// merged monthly burn: imported baseline + invoices recorded since (month = month of the service-period END, same rule as the tracker)
+function finBurn(f){
+  const out={};
+  const add=(m,by)=>{out[m]=out[m]||{};Object.keys(by).forEach(p=>{out[m][p]=(out[m][p]||0)+by[p];});};
+  Object.keys(f.burnBase||{}).forEach(m=>add(m,f.burnBase[m]));
+  (f.burnEvents||[]).forEach(ev=>add(ev.month,ev.by));
+  return out;
+}
+// called for every invoice that is uploaded; safe to repeat — an invoice number is only ever recorded once
+function recordFinancials(rows,invNum,invDate){
+  try{
+    const f=loadFin();const key=String(invNum).trim();
+    if(!key||key==='—'||f.spend.some(e=>e.inv===key))return false;
+    const date=isoFromUS(invDate)||todayISO();
+    const mod=rows.filter(r=>r.type==='MOD'),oth=rows.filter(r=>r.type==='OTHER');
+    const sum=a=>a.reduce((s,r)=>s+r.amt,0);
+    f.spend.push({inv:key,date,mod:sum(mod),leg:0,oth:sum(oth)});
+    f.spend.sort((a,b)=>a.date.localeCompare(b.date)||a.inv.localeCompare(b.inv));
+    const endIso=isoFromUS((mod[0]||rows[0]||{}).end)||date;
+    const by={};mod.forEach(r=>{const p=r.person.split(' ')[0];by[p]=(by[p]||0)+r.amt;});
+    if(Object.keys(by).length)f.burnEvents.push({inv:key,month:endIso.slice(0,7),by});
+    saveFin(f);return true;
+  }catch(e){return false;}
+}
+function recordPct(pct){
+  try{
+    const f=loadFin();const d=todayISO();const i=f.pct.findIndex(p=>p.date===d);
+    if(i>=0)f.pct[i].pct=pct;else f.pct.push({date:d,pct});
+    f.pct.sort((a,b)=>a.date.localeCompare(b.date));saveFin(f);
+  }catch(e){}
+}
+function mergePct(incoming,current){
+  const m={};incoming.forEach(p=>{m[p.date]=+p.pct;});current.forEach(p=>{m[p.date]=+p.pct;});
+  return Object.keys(m).sort().map(d=>({date:d,pct:m[d]}));
+}
+function importFinFile(file){
+  const msg=document.getElementById('fin-import-msg');if(!file)return;
+  file.text().then(txt=>{
+    const inp=document.getElementById('fi-fin');if(inp)inp.value='';
+    let d;try{d=JSON.parse(txt);}catch(e){msg.innerHTML='<span style="color:#c00">That file is not valid JSON.</span>';return;}
+    if(!d||d.version!==1||!Array.isArray(d.spend)||typeof d.burn!=='object'||d.burn===null){msg.innerHTML='<span style="color:#c00">That doesn\'t look like a financial history file.</span>';return;}
+    const cur=loadFin();const incoming=new Set(d.spend.map(e=>String(e.inv)));
+    if(cur.spend.length&&!confirm("Importing replaces the invoices and monthly burn currently in this browser with the file's (invoices recorded since the file was made are kept, and % complete points are merged). If you've made manual edits, copy a backup first. Continue?")){msg.innerHTML='Import cancelled.';return;}
+    const keep=cur.spend.filter(e=>!incoming.has(e.inv));
+    const f={
+      spend:[...d.spend.map(e=>({inv:String(e.inv),date:e.date,mod:+e.mod||0,leg:+e.leg||0,oth:+e.oth||0})),...keep].sort((a,b)=>a.date.localeCompare(b.date)||a.inv.localeCompare(b.inv)),
+      burnBase:d.burn,
+      burnEvents:(cur.burnEvents||[]).filter(ev=>!incoming.has(ev.inv)),
+      pct:mergePct(d.pct||[],cur.pct||[])
+    };
+    saveFin(f);
+    msg.innerHTML='<span style="color:#1e6e3a">&#10003; Imported '+d.spend.length+' invoices, '+Object.keys(d.burn).length+' months of burn and '+(d.pct||[]).length+' % complete points.</span>';
+    renderFinData();renderFinancials();
+  });
+}
+function parseDateFlexible(s){
+  s=String(s||'').trim();let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)))return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/))){let y=m[3];if(y.length===2)y='20'+y;return y+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');}
+  return null;
+}
+function addPctLines(){
+  const ta=document.getElementById('fin-pct-input'),msg=document.getElementById('fin-pct-msg');
+  const f=loadFin();let added=0;const skipped=[];
+  ta.value.split('\n').map(l=>l.trim()).filter(Boolean).forEach(l=>{
+    let parts=l.split(/[,\t;]+/).map(x=>x.trim()).filter(Boolean);if(parts.length<2)parts=l.split(/\s+/);
+    const d=parseDateFlexible(parts[0]),p=parseFloat(String(parts[1]||'').replace('%',''));
+    if(!d||isNaN(p)||p<0||p>100){skipped.push(l);return;}
+    const i=f.pct.findIndex(x=>x.date===d);if(i>=0)f.pct[i].pct=p;else f.pct.push({date:d,pct:p});added++;
+  });
+  f.pct.sort((a,b)=>a.date.localeCompare(b.date));saveFin(f);
+  ta.value=skipped.join('\n');
+  msg.innerHTML=(added?'<span style="color:#1e6e3a">&#10003; Added '+added+' point'+(added===1?'':'s')+'.</span> ':'')+(skipped.length?'<span style="color:#c00">Couldn\'t read '+skipped.length+' line'+(skipped.length===1?'':'s')+' (left in the box) — use "date, percent".</span>':'');
+  renderFinData();renderFinancials();
+}
+function deletePct(date){const f=loadFin();f.pct=f.pct.filter(p=>p.date!==date);saveFin(f);renderFinData();renderFinancials();}
+function renderFinData(){
+  const el=document.getElementById('fin-data-summary');if(!el)return;
+  const f=loadFin();const burn=finBurn(f);const months=Object.keys(burn).length;
+  el.textContent=f.spend.length?(f.spend.length+' invoices · '+months+' months of burn · '+f.pct.length+' % complete points'):'No financial data yet — import the history file, or add rows below.';
+  const set=(id,html)=>{const e=document.getElementById(id);if(e)e.innerHTML=html;};
+  set('fin-tbl-inv',renderFinInvTable(f));
+  set('fin-tbl-burn',renderFinBurnTable(f));
+  set('fin-tbl-pct',renderFinPctTable(f));
+}
+function exportFin(){
+  const f=loadFin();const txt=JSON.stringify({version:1,generated:todayISO(),spend:f.spend,burn:finBurn(f),pct:f.pct},null,1);
+  const out=document.getElementById('fin-backup-out');
+  navigator.clipboard.writeText(txt).then(()=>{out.innerHTML='<div class="fin-note info">&#10003; Copied. Paste it into a text file and save it as a .json file — that file can be re-imported above.</div>';})
+    .catch(()=>{out.innerHTML='<textarea rows="8" readonly style="font-family:monospace;font-size:11px">'+txt.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>';});
+}
+function clearFin(){
+  if(!confirm('This deletes the financial history stored in this browser. Your tracker spreadsheet is not affected. Continue?'))return;
+  localStorage.removeItem(LS_FIN);renderFinData();renderFinancials();
+}
+let finCharts={};
+function showDashView(v){
+  document.getElementById('dash-delivery').style.display=v==='delivery'?'block':'none';
+  document.getElementById('dash-fin').style.display=v==='fin'?'block':'none';
+  document.getElementById('vt-delivery').className='vt'+(v==='delivery'?' on':'');
+  document.getElementById('vt-fin').className='vt'+(v==='fin'?' on':'');
+  if(v==='fin')renderFinancials();
+}
+function renderFinancials(){
+  Object.keys(finCharts).forEach(k=>{try{finCharts[k].destroy();}catch(e){}});finCharts={};
+  const empty=document.getElementById('fin-empty'),body=document.getElementById('fin-body');
+  if(!empty||!body)return;
+  const f=loadFin();
+  if(!f.spend.length){empty.style.display='block';body.style.display='none';return;}
+  empty.style.display='none';body.style.display='block';
+
+  const spend=f.spend.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.inv.localeCompare(b.inv));
+  let st={};try{st=JSON.parse(localStorage.getItem(LS_BUDGET)||'{}');}catch(e){}
+  const modBudget=st.modBudget!=null?st.modBudget:BUDGET_DEFAULTS.modBudget;
+  let cm=0,cl=0;const modPts=[],legPts=[];
+  spend.forEach(e=>{const x=dateMs(e.date);if(e.mod){cm+=e.mod;modPts.push({x,y:cm});}if(e.leg){cl+=e.leg;legPts.push({x,y:cl});}});
+
+  // ----- summary cards -----
+  const lsMod=parseFloat(String(localStorage.getItem(LS_MOD)||'').replace(/[^0-9.]/g,''))||0;
+  const modSpent=lsMod||cm,remaining=modBudget-modSpent,pctUsed=modBudget?modSpent/modBudget*100:0;
+  const lastPct=f.pct.length?f.pct[f.pct.length-1].pct:null;
+  const savedPct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
+  const pctComplete=!isNaN(savedPct)?savedPct:lastPct;
+  const burn=finBurn(f),months=Object.keys(burn).sort();
+  const mTot=m=>Object.keys(burn[m]).reduce((s,p)=>s+burn[m][p],0);
+  const last3=months.slice(0,-1).slice(-3).map(mTot);                 // the newest month may be partial, so it's left out
+  const avgBurn=last3.length?last3.reduce((a,b)=>a+b,0)/last3.length:0;
+  const runway=avgBurn>0?remaining/avgBurn:null;
+  const aheadOfProgress=pctComplete!=null&&pctUsed>pctComplete+3;
+  const card=(lbl,sub,val,cls)=>'<div class="metric-card'+(cls?' '+cls:'')+'"><p class="mc-lbl">'+lbl+'</p>'+(sub?'<p class="mc-sub">'+sub+'</p>':'')+'<p class="mc-val">'+val+'</p></div>';
+  document.getElementById('fin-cards').innerHTML=[
+    card('Cost to date','Modernization',money(modSpent)),
+    card('Remaining','of '+money(modBudget),money(remaining)),
+    card('Budget used',pctComplete!=null?'vs '+pctComplete+'% complete':'',pctUsed.toFixed(1)+'%',aheadOfProgress?'warn':''),
+    card('% Complete','from epic CSV',pctComplete!=null?pctComplete+'%':'—'),
+    card('Avg monthly burn','last 3 full months',avgBurn?money(avgBurn):'—'),
+    card('Runway','at that burn',runway!=null?runway.toFixed(1)+' mo':'—'),
+    card('Legacy spent','FY26 · '+money(LEGACY_FY26_BUDGET)+' budget',money(cl)),
+    card('Legacy used','',(cl/LEGACY_FY26_BUDGET*100).toFixed(0)+'%')
+  ].join('');
+
+  // ----- notes -----
+  const notes=[];const gap=lsMod?lsMod-cm:0;
+  if(gap>1)notes.push('<div class="fin-note warn">Your running total ('+money(lsMod)+') is '+money(gap)+' ahead of the invoices recorded here. Upload the latest invoice on the Invoice tab to add it to these charts.</div>');
+  if(f.pct.length<3)notes.push('<div class="fin-note info">% complete history has '+f.pct.length+' point'+(f.pct.length===1?'':'s')+'. Each epic calculation is recorded automatically from now on; add earlier points in Manage &rarr; Financial data to fill in the trend.</div>');
+  document.getElementById('fin-notes').innerHTML=notes.join('');
+
+  // ----- subtitles -----
+  const setT=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
+  setT('fsub-mod','Development only (excludes Discovery) · budget '+money(modBudget));
+  setT('fsub-leg','Maintenance billed in FY26 · budget '+money(LEGACY_FY26_BUDGET));
+  setT('fsub-pct','Budget spent is measured against the current '+money(modBudget)+' budget');
+  setT('fsub-burn','By service period · includes Discovery work through Sep 2025');
+
+  if(typeof Chart==='undefined')return;
+  const moneyTick=v=>v>=1000000?'$'+(v/1e6).toFixed(1)+'M':'$'+Math.round(v/1000)+'k';
+  const BLUE='#2d5fa6',ORANGE='#e05c2a';
+  const lineChart=(id,datasets,yScale,labelFn)=>{
+    const ctx=document.getElementById(id);if(!ctx)return null;
+    return new Chart(ctx,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,
+      plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{title:items=>items.length?msFull(items[0].parsed.x):'',label:labelFn}}},
+      scales:{x:{type:'linear',grid:{display:false},ticks:{font:{size:10},maxTicksLimit:7,callback:v=>msLabel(v)}},y:yScale}}});
+  };
+  const spanLine=(pts,y)=>pts.length?[{x:pts[0].x,y},{x:pts[pts.length-1].x,y}]:[];
+  const dollarY={beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:moneyTick}};
+  const dollarLabel=c=>c.dataset.label+': '+money(c.parsed.y);
+
+  finCharts.mod=lineChart('fchart-mod',[
+    {label:'Cumulative spend',data:modPts,borderColor:BLUE,backgroundColor:'rgba(45,95,166,.10)',fill:true,tension:.15,pointRadius:2,borderWidth:2},
+    {label:'Budget',data:spanLine(modPts,modBudget),borderColor:ORANGE,borderDash:[6,4],pointRadius:0,borderWidth:1.5}
+  ],dollarY,dollarLabel);
+  finCharts.leg=lineChart('fchart-leg',[
+    {label:'Cumulative spend',data:legPts,borderColor:'#2F575D',backgroundColor:'rgba(47,87,93,.10)',fill:true,tension:.15,pointRadius:2,borderWidth:2},
+    {label:'FY26 budget',data:spanLine(legPts,LEGACY_FY26_BUDGET),borderColor:ORANGE,borderDash:[6,4],pointRadius:0,borderWidth:1.5}
+  ],dollarY,dollarLabel);
+  finCharts.pct=lineChart('fchart-pct',[
+    {label:'% of budget spent',data:modPts.map(p=>({x:p.x,y:modBudget?p.y/modBudget*100:0})),borderColor:ORANGE,tension:.15,pointRadius:2,borderWidth:2},
+    {label:'% complete',data:f.pct.map(p=>({x:dateMs(p.date),y:p.pct})),borderColor:BLUE,backgroundColor:BLUE,pointRadius:4,borderWidth:2,tension:.15}
+  ],{min:0,max:100,grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:v=>v+'%'}},c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%');
+
+  // ----- burn by person -----
+  const people=[...new Set(months.reduce((a,m)=>a.concat(Object.keys(burn[m])),[]))].sort((a,b)=>{const ia=PERSON_ORDER.indexOf(a),ib=PERSON_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);});
+  const fallback=['#8e6bbf','#c0504d','#4bacc6','#f79646'];
+  const burnCtx=document.getElementById('fchart-burn');
+  if(burnCtx){
+    finCharts.burn=new Chart(burnCtx,{type:'bar',data:{labels:months.map(monthLabel),datasets:people.map((p,i)=>({label:p,data:months.map(m=>burn[m][p]||0),backgroundColor:PERSON_COLORS[p]||fallback[i%fallback.length]}))},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{mode:'index',intersect:false,callbacks:{label:c=>c.dataset.label+': '+money(c.parsed.y),footer:items=>'Total: '+money(items.reduce((s,i)=>s+i.parsed.y,0))}}},
+        scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9},maxRotation:60}},y:{stacked:true,grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:moneyTick}}}}});
+  }
+
+  // ----- person summary table -----
+  const full=months.slice(0,-1).slice(-3);
+  const pTot={},pAvg={};let grand=0;
+  people.forEach(p=>{pTot[p]=months.reduce((s,m)=>s+(burn[m][p]||0),0);pAvg[p]=full.length?full.reduce((s,m)=>s+(burn[m][p]||0),0)/full.length:0;grand+=pTot[p];});
+  const disc=Math.round(grand-cm);
+  document.getElementById('fin-person-table').innerHTML=
+    '<div style="border:1px solid #eee;border-radius:8px;overflow:hidden"><table class="etable"><thead><tr><th>Person</th><th style="text-align:right">Total to date</th><th style="text-align:right">Share</th><th style="text-align:right">Avg / month (last 3 full)</th></tr></thead><tbody>'+
+    people.map(p=>'<tr><td style="font-weight:500">'+p+'</td><td style="text-align:right">'+money(pTot[p])+'</td><td style="text-align:right">'+(grand?(pTot[p]/grand*100).toFixed(0):0)+'%</td><td style="text-align:right">'+money(pAvg[p])+'</td></tr>').join('')+
+    '<tr style="background:#f8f8f8;font-weight:600"><td>Total</td><td style="text-align:right">'+money(grand)+'</td><td style="text-align:right">100%</td><td style="text-align:right">'+money(people.reduce((s,p)=>s+pAvg[p],0))+'</td></tr></tbody></table></div>'+
+    (disc>0?'<p class="hint" style="margin-top:6px">Includes about '+money(disc)+' of Discovery work (May&ndash;Sep 2025), which the Modernization cost to date above excludes.</p>':'');
+}
+
+// ── editable history tables — same click-to-edit pattern as the sprint Source Data table ──
+let finEditTab='inv';
+function finEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function validISO(s){return /^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(Date.parse(s+'T00:00:00Z'));}
+function validMonth(s){return /^\d{4}-(0[1-9]|1[0-2])$/.test(s);}
+function num0(v){const n=parseFloat(String(v).replace(/[^0-9.-]/g,''));return isNaN(n)?0:Math.round(n);}
+function sortSpend(f){f.spend.sort((a,b)=>a.date.localeCompare(b.date)||a.inv.localeCompare(b.inv));}
+function finPeople(burn){
+  const ps=[...new Set(Object.keys(burn).reduce((a,m)=>a.concat(Object.keys(burn[m])),[]))];
+  return ps.sort((a,b)=>{const ia=PERSON_ORDER.indexOf(a),ib=PERSON_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);});
+}
+function showFinEdit(t){
+  finEditTab=t;
+  ['inv','burn','pct'].forEach(k=>{
+    const pane=document.getElementById('fin-edit-'+k),btn=document.getElementById('fet-'+k);
+    if(pane)pane.style.display=k===t?'block':'none';
+    if(btn)btn.className='vt'+(k===t?' on':'');
+  });
+}
+function finMsg(text,kind){const el=document.getElementById('fin-edit-msg');if(el)el.innerHTML=text?'<span style="color:'+(kind==='err'?'#c00':'#1e6e3a')+'">'+(kind==='err'?'':'&#10003; ')+text+'</span>':'';}
+// ---- data operations (each returns an error message, or null when it worked) ----
+function finAddInvoice(o){
+  const f=loadFin();const inv=String(o.inv||'').trim();
+  if(!inv)return "Enter an invoice number.";
+  if(f.spend.some(e=>e.inv===inv))return "Invoice "+inv+" is already in the list — edit it there instead.";
+  if(!validISO(o.date))return "Pick the invoice date.";
+  f.spend.push({inv,date:o.date,mod:num0(o.mod),leg:num0(o.leg),oth:num0(o.oth)});
+  sortSpend(f);saveFin(f);return null;
+}
+function finSetInvoice(inv,field,val){
+  const f=loadFin();const e=f.spend.find(x=>x.inv===inv);if(!e)return "Invoice not found.";
+  if(field==='date'){if(!validISO(val))return "Enter a valid date.";e.date=val;}
+  else if(field==='inv'){
+    const n=String(val).trim();
+    if(!n)return "The invoice number can't be blank.";
+    if(n!==inv&&f.spend.some(x=>x.inv===n))return "Invoice "+n+" already exists.";
+    f.burnEvents.forEach(b=>{if(b.inv===inv)b.inv=n;});e.inv=n;
+  }
+  else if(field==='mod'||field==='leg'||field==='oth'){e[field]=num0(val);}
+  else return "Unknown field.";
+  sortSpend(f);saveFin(f);return null;
+}
+function finDeleteInvoice(inv){
+  const f=loadFin();f.spend=f.spend.filter(e=>e.inv!==inv);f.burnEvents=f.burnEvents.filter(b=>b.inv!==inv);saveFin(f);
+}
+// the cell shows the effective total (imported baseline + invoices recorded since); editing adjusts the baseline so the cell reads exactly what you typed
+function finSetBurnCell(month,person,val){
+  const f=loadFin();
+  const ev=f.burnEvents.filter(b=>b.month===month).reduce((s,b)=>s+(b.by[person]||0),0);
+  f.burnBase[month]=f.burnBase[month]||{};
+  f.burnBase[month][person]=num0(val)-ev;
+  saveFin(f);
+}
+function finAddMonth(m){
+  if(!validMonth(m))return "Pick a month.";
+  const f=loadFin();const burn=finBurn(f);
+  if(burn[m])return monthLabel(m)+" is already in the table.";
+  const people=finPeople(burn);
+  f.burnBase[m]={};(people.length?people:PERSON_ORDER).forEach(p=>{f.burnBase[m][p]=0;});
+  saveFin(f);return null;
+}
+function finAddPerson(name){
+  name=String(name||'').trim();if(!name)return "Enter a first name.";
+  const f=loadFin();const burn=finBurn(f);
+  if(finPeople(burn).some(p=>p.toLowerCase()===name.toLowerCase()))return name+" is already a column.";
+  const months=Object.keys(burn).sort();const m=months.length?months[months.length-1]:todayISO().slice(0,7);
+  f.burnBase[m]=f.burnBase[m]||{};f.burnBase[m][name]=0;saveFin(f);return null;
+}
+function finSetPct(date,field,val){
+  const f=loadFin();const p=f.pct.find(x=>x.date===date);if(!p)return "Point not found.";
+  if(field==='pct'){const n=parseFloat(val);if(isNaN(n)||n<0||n>100)return "Percent must be between 0 and 100.";p.pct=n;}
+  else if(field==='date'){if(!validISO(val))return "Enter a valid date.";if(val!==date&&f.pct.some(x=>x.date===val))return "There is already a point on "+val+".";p.date=val;}
+  else return "Unknown field.";
+  f.pct.sort((a,b)=>a.date.localeCompare(b.date));saveFin(f);return null;
+}
+// ---- table renderers ----
+function finEditCell(kind,key,field,raw,type,step,disp){
+  return '<td><span class="editable-cell" data-kind="'+kind+'" data-key="'+finEsc(key)+'" data-field="'+finEsc(field)+'" data-type="'+type+'" data-step="'+step+'" data-raw="'+finEsc(raw)+'" title="Click to edit" onclick="startFinEdit(this)">'+finEsc(disp)+'</span></td>';
+}
+const FIN_RM='<button class="btn" style="font-size:10px;padding:1px 8px"';
+function renderFinInvTable(f){
+  const rows=f.spend.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.inv.localeCompare(a.inv));
+  const t=k=>rows.reduce((s,e)=>s+(e[k]||0),0);
+  return '<table class="data-tbl fin"><thead><tr><th>Invoice #</th><th>Invoice date</th><th>Modernization</th><th>Legacy</th><th>Other</th><th></th></tr></thead><tbody>'+
+    '<tr style="font-weight:600"><td>Total ('+rows.length+')</td><td></td><td>'+money(t('mod'))+'</td><td>'+money(t('leg'))+'</td><td>'+money(t('oth'))+'</td><td></td></tr>'+
+    rows.map(e=>'<tr>'+finEditCell('inv',e.inv,'inv',e.inv,'text','',e.inv)+finEditCell('inv',e.inv,'date',e.date,'date','',e.date)+
+      finEditCell('inv',e.inv,'mod',e.mod||0,'number','1',money(e.mod||0))+finEditCell('inv',e.inv,'leg',e.leg||0,'number','1',money(e.leg||0))+finEditCell('inv',e.inv,'oth',e.oth||0,'number','1',money(e.oth||0))+
+      '<td>'+FIN_RM+' data-key="'+finEsc(e.inv)+'" onclick="finDeleteInvoiceUI(this)">remove</button></td></tr>').join('')+
+    '</tbody></table>';
+}
+function renderFinBurnTable(f){
+  const burn=finBurn(f),months=Object.keys(burn).sort().reverse(),people=finPeople(burn);
+  if(!months.length)return '<p class="hint" style="padding:10px">No months yet — add one above, or import your history file.</p>';
+  const cell=(m,p)=>burn[m][p]||0;
+  const mt=m=>people.reduce((s,p)=>s+cell(m,p),0),pt=p=>months.reduce((s,m)=>s+cell(m,p),0);
+  return '<table class="data-tbl fin"><thead><tr><th>Month</th>'+people.map(p=>'<th>'+finEsc(p)+'</th>').join('')+'<th>Total</th></tr></thead><tbody>'+
+    '<tr style="font-weight:600"><td>All months</td>'+people.map(p=>'<td>'+money(pt(p))+'</td>').join('')+'<td>'+money(months.reduce((s,m)=>s+mt(m),0))+'</td></tr>'+
+    months.map(m=>'<tr><td>'+monthLabel(m)+'</td>'+people.map(p=>finEditCell('burn',m,p,cell(m,p),'number','1',money(cell(m,p)))).join('')+'<td style="font-weight:600">'+money(mt(m))+'</td></tr>').join('')+
+    '</tbody></table>';
+}
+function renderFinPctTable(f){
+  const rows=f.pct.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if(!rows.length)return '<p class="hint" style="padding:10px">None yet.</p>';
+  return '<table class="data-tbl fin"><thead><tr><th>Date</th><th>% complete</th><th></th></tr></thead><tbody>'+
+    rows.map(p=>'<tr>'+finEditCell('pct',p.date,'date',p.date,'date','',p.date)+finEditCell('pct',p.date,'pct',p.pct,'number','0.1',p.pct+'%')+
+      '<td>'+FIN_RM+' data-key="'+finEsc(p.date)+'" onclick="finDeletePctUI(this)">remove</button></td></tr>').join('')+'</tbody></table>';
+}
+// ---- UI glue ----
+function startFinEdit(span){
+  if(span.querySelector('input'))return;
+  const type=span.dataset.type||'number',step=span.dataset.step||'1';
+  const current=span.dataset.raw!=null?span.dataset.raw:span.textContent.trim();
+  const input=document.createElement('input');
+  input.className='editable-input';input.type=type;if(step)input.step=step;input.value=current;
+  input.style.width=type==='text'?'110px':(type==='date'?'138px':'84px');
+  span.textContent='';span.appendChild(input);input.focus();if(input.select)input.select();
+  let done=false;
+  const commit=()=>{if(done)return;done=true;finCommitEdit(span.dataset.kind,span.dataset.key,span.dataset.field,input.value);};
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='Escape'){done=true;renderFinData();}
+  });
+}
+function finCommitEdit(kind,key,field,raw){
+  let err=null;
+  if(kind==='inv')err=finSetInvoice(key,field,raw);
+  else if(kind==='burn')finSetBurnCell(key,field,raw);
+  else if(kind==='pct')err=finSetPct(key,field,raw);
+  finMsg(err||'Saved.',err?'err':'ok');
+  renderFinData();
+}
+function finAddInvoiceUI(){
+  const g=id=>document.getElementById(id);
+  const err=finAddInvoice({inv:g('fin-add-inv').value,date:g('fin-add-date').value,mod:g('fin-add-mod').value,leg:g('fin-add-leg').value,oth:g('fin-add-oth').value});
+  if(err){finMsg(err,'err');return;}
+  ['fin-add-inv','fin-add-date','fin-add-mod','fin-add-leg','fin-add-oth'].forEach(id=>{g(id).value='';});
+  finMsg('Invoice added.');renderFinData();
+}
+function finAddMonthUI(){const el=document.getElementById('fin-add-month');const err=finAddMonth(el.value);if(err){finMsg(err,'err');return;}el.value='';finMsg('Month added — click a cell to enter amounts.');renderFinData();}
+function finAddPersonUI(){const el=document.getElementById('fin-add-person');const err=finAddPerson(el.value);if(err){finMsg(err,'err');return;}el.value='';finMsg('Person added — click a cell to enter amounts.');renderFinData();}
+function finDeleteInvoiceUI(btn){
+  const inv=btn.dataset.key;
+  if(!confirm('Remove invoice '+inv+' from the financial history? Any burn recorded from its upload is removed too.'))return;
+  finDeleteInvoice(inv);finMsg('Invoice removed.');renderFinData();
+}
+function finDeletePctUI(btn){const f=loadFin();const d=btn.dataset.key;f.pct=f.pct.filter(p=>p.date!==d);saveFin(f);renderFinData();}
+
+// ══ FINANCIALS END
+
 // ── UTILS ────────────────────────────────────────────────────────────────────
 function cp(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent||el.innerText).then(()=>{});}
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.style.display='block';el.textContent=msg;}}
@@ -1382,7 +1854,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   renderDashboard();
   restoreLastSprint();
   renderProcessedHistory();
-  if(isEmbedded){const mb=document.getElementById('manage-btn-top');if(mb)mb.style.display='none';}
+  renderFinData();
+  if(isEmbedded){const mb=document.getElementById('manage-btn-top');if(mb)mb.style.display='none';const vt=document.getElementById('view-tabs');if(vt)vt.style.display='none';}
 });
 </script>
 </body>
