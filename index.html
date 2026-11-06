@@ -23,6 +23,25 @@ table.data-tbl.fin td:first-child{text-align:left}
 .fin-add label{font-size:11px;color:#888;display:block;margin-bottom:2px}
 .fin-add input.fa{width:112px;font-size:12px;padding:5px 8px}
 .fin-scroll{max-height:340px;overflow:auto;border:1px solid #eee;border-radius:8px}
+.chart-card{position:relative;cursor:zoom-in}
+.chart-card h3{padding-right:24px}
+.chart-card::after{content:"\2922";position:absolute;top:10px;right:12px;font-size:15px;color:#b5b5b5;line-height:1}
+.chart-card:hover::after{color:#1a3a6b}
+.chart-card:hover{box-shadow:0 2px 10px rgba(26,58,107,.10)}
+.cm-backdrop{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(15,25,45,.58);z-index:1000;display:none;align-items:center;justify-content:center;padding:2vh 2vw}
+.cm-panel{background:#fff;border-radius:14px;width:min(1120px,96vw);max-height:94vh;overflow:auto;padding:18px 22px 20px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.cm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:2px}
+.cm-head h3{font-size:17px;font-weight:600;margin:0}
+.cm-close{font-size:22px;line-height:1;border:none;background:none;cursor:pointer;color:#777;padding:2px 8px;border-radius:6px}
+.cm-close:hover{background:#f0f0f0;color:#000}
+.cm-sub{font-size:12px;color:#777;margin-bottom:8px}
+.cm-chart{position:relative;height:min(48vh,430px);margin-bottom:8px}
+.cm-selected{margin:6px 0 10px;padding:8px 12px;background:#eef3fb;border-radius:8px;font-size:13px;color:#1a3a6b;min-height:18px}
+.cm-table{max-height:30vh;overflow:auto;border:1px solid #eee;border-radius:8px}
+.cm-table h4{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin:10px 10px 4px;font-weight:500}
+.cm-table th{position:sticky;top:0;z-index:1}
+.cm-table td.cm-col{background:#fffbea}
+.cm-table tr.cm-hl td{background:#ffe9a8!important;font-weight:600}
 .vt{font-size:13px;padding:6px 18px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666}
 .vt.on{background:#1a3a6b;color:#fff;border-color:#1a3a6b;font-weight:500}
 .fin-note{font-size:12px;border-radius:8px;padding:8px 12px;margin-bottom:10px}
@@ -147,7 +166,7 @@ input[type=file]{display:none}
     <div class="metric-card" id="dc-done-card"><p class="mc-lbl">SP Done</p><p class="mc-val" id="dc-done">—</p></div>
     <div class="metric-card"><p class="mc-lbl">Goals Achieved</p><p class="mc-val" id="dc-goals">—</p></div>
     <div class="metric-card"><p class="mc-lbl">Avg Velocity<p class="mc-sub">last 3 sprints</p></p><p class="mc-val" id="dc-avgvel">—</p></div>
-    <div class="metric-card" id="dc-epicpct-card"><p class="mc-lbl">Project % Complete<p class="mc-sub">from epic CSV</p></p><p class="mc-val" id="dc-epicpct">—</p></div>
+    <div class="metric-card" id="dc-epicpct-card"><p class="mc-lbl">Project % Complete</p><p class="mc-val" id="dc-epicpct">—</p></div>
   </div>
 
   <!-- Sprint goals -->
@@ -418,6 +437,17 @@ input[type=file]{display:none}
 </div>
 
 </div><!-- /container -->
+
+<!-- ══ CHART POP-UP (click any chart to open) ══ -->
+<div class="cm-backdrop" id="chart-modal" onclick="if(event.target===this)closeChartModal()">
+  <div class="cm-panel" role="dialog" aria-modal="true" aria-labelledby="cm-title">
+    <div class="cm-head"><h3 id="cm-title"></h3><button class="cm-close" onclick="closeChartModal()" aria-label="Close" title="Close (Esc)">&times;</button></div>
+    <div class="cm-sub" id="cm-sub"></div>
+    <div class="cm-chart"><canvas id="cm-canvas"></canvas></div>
+    <div class="cm-selected" id="cm-selected"></div>
+    <div class="cm-table" id="cm-table"></div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
@@ -1486,6 +1516,7 @@ function loadFin(){
   return {spend:[],burnBase:{},burnEvents:[],pct:[]};
 }
 function saveFin(f){localStorage.setItem(LS_FIN,JSON.stringify(f));}
+function finPctSorted(f){return (f.pct||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));}
 // merged monthly burn: imported baseline + invoices recorded since (month = month of the service-period END, same rule as the tracker)
 function finBurn(f){
   const out={};
@@ -1606,7 +1637,7 @@ function renderFinancials(){
   // ----- summary cards -----
   const lsMod=parseFloat(String(localStorage.getItem(LS_MOD)||'').replace(/[^0-9.]/g,''))||0;
   const modSpent=lsMod||cm,remaining=modBudget-modSpent,pctUsed=modBudget?modSpent/modBudget*100:0;
-  const lastPct=f.pct.length?f.pct[f.pct.length-1].pct:null;
+  const lastPct=finPctSorted(f).length?finPctSorted(f)[finPctSorted(f).length-1].pct:null;
   const savedPct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
   const pctComplete=!isNaN(savedPct)?savedPct:lastPct;
   const burn=finBurn(f),months=Object.keys(burn).sort();
@@ -1620,7 +1651,7 @@ function renderFinancials(){
     card('Cost to date','Modernization',money(modSpent)),
     card('Remaining','of '+money(modBudget),money(remaining)),
     card('Budget used',pctComplete!=null?'vs '+pctComplete+'% complete':'',pctUsed.toFixed(1)+'%',aheadOfProgress?'warn':''),
-    card('% Complete','from epic CSV',pctComplete!=null?pctComplete+'%':'—'),
+    card('% Complete','',pctComplete!=null?pctComplete+'%':'—'),
     card('Avg monthly burn','last 3 full months',avgBurn?money(avgBurn):'—'),
     card('Runway','at that burn',runway!=null?runway.toFixed(1)+' mo':'—'),
     card('Legacy spent','FY26 · '+money(LEGACY_FY26_BUDGET)+' budget',money(cl)),
@@ -1663,7 +1694,7 @@ function renderFinancials(){
   ],dollarY,dollarLabel);
   finCharts.pct=lineChart('fchart-pct',[
     {label:'% of budget spent',data:modPts.map(p=>({x:p.x,y:modBudget?p.y/modBudget*100:0})),borderColor:ORANGE,tension:.15,pointRadius:2,borderWidth:2},
-    {label:'% complete',data:f.pct.map(p=>({x:dateMs(p.date),y:p.pct})),borderColor:BLUE,backgroundColor:BLUE,pointRadius:4,borderWidth:2,tension:.15}
+    {label:'% complete',data:finPctSorted(f).map(p=>({x:dateMs(p.date),y:p.pct})),borderColor:BLUE,backgroundColor:BLUE,pointRadius:4,borderWidth:2,tension:.15}
   ],{min:0,max:100,grid:{color:'#f0f0f0'},ticks:{font:{size:10},callback:v=>v+'%'}},c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'%');
 
   // ----- burn by person -----
@@ -1839,6 +1870,150 @@ function finDeletePctUI(btn){const f=loadFin();const d=btn.dataset.key;f.pct=f.p
 
 // ══ FINANCIALS END
 
+
+// ══ CHART EXPAND BEGIN — click any chart to enlarge it and drill into the numbers behind it ══
+let cmChart=null,cmMeta=null,cmSel=null;
+function cloneDeep(v){
+  if(Array.isArray(v))return v.map(cloneDeep);
+  if(v&&typeof v==='object'&&Object.getPrototypeOf(v)===Object.prototype){const o={};Object.keys(v).forEach(k=>{o[k]=cloneDeep(v[k]);});return o;}
+  return v;
+}
+function finSeries(f){
+  const spend=f.spend.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.inv.localeCompare(b.inv));
+  let cm=0,cl=0;const mod=[],leg=[];
+  spend.forEach(e=>{
+    if(e.mod){cm+=e.mod;mod.push({inv:e.inv,date:e.date,amt:e.mod,cum:cm});}
+    if(e.leg){cl+=e.leg;leg.push({inv:e.inv,date:e.date,amt:e.leg,cum:cl});}
+  });
+  return {mod,leg};
+}
+function cmRows(headers,rows,sel,hlCols){
+  const th='<tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr>';
+  const tr=rows.map(r=>'<tr data-ds="'+r.ds+'" data-i="'+r.i+'"'+(sel&&sel.ds===r.ds&&sel.i===r.i?' class="cm-hl"':'')+'>'+
+    r.cells.map((c,ci)=>'<td'+(hlCols&&hlCols.indexOf(ci)>=0?' class="cm-col"':'')+'>'+c+'</td>').join('')+'</tr>').join('');
+  return '<table class="data-tbl fin"><thead>'+th+'</thead><tbody>'+tr+'</tbody></table>';
+}
+// ---- Delivery charts: the sprint numbers behind them ----
+const CM_HL={gcr:[2],scr:[3],mct:[4],vel:[3],def:[6,7,8],mlt:[5]};
+const CM_SUMMARY={
+  gcr:d=>'<b>Sprint '+d.sprint+'</b> ('+finEsc(d.release)+') — '+d.goalsmet+' of '+d.goals+' sprint goals achieved: <b>'+d.pctAchieved+'%</b> (goal 80%)',
+  scr:d=>'<b>Sprint '+d.sprint+'</b> — '+d.done+' of '+d.committed+' committed story points done: <b>'+d.pctSP+'%</b>',
+  mct:d=>'<b>Sprint '+d.sprint+'</b> — median cycle time <b>'+d.cycle+' days</b> (goal 6 days)',
+  vel:d=>'<b>Sprint '+d.sprint+'</b> — <b>'+d.done+'</b> story points done (committed '+d.committed+')',
+  def:d=>'<b>Sprint '+d.sprint+'</b> — '+d.defects+' pts fixes &amp; improvements vs '+d.value+' pts value: <b>'+d.defRate+'%</b> fix rate',
+  mlt:d=>'<b>Sprint '+d.sprint+'</b> — median lead time <b>'+d.lead+' days</b> (goal 30 days)'
+};
+function sprintDetail(key){
+  const data=loadSprints().map(derived);
+  const heads=['Sprint','Release','Goals achieved','SP done / committed','Cycle (days)','Lead (days)','Fixes &amp; impr. (pts)','Value (pts)','Fix rate'];
+  const rows=data.map((d,i)=>({ds:0,i,cells:['Sprint '+d.sprint,finEsc(d.release),d.goalsmet+' / '+d.goals+' ('+d.pctAchieved+'%)',d.done+' / '+d.committed+' ('+d.pctSP+'%)',d.cycle,d.lead,d.defects,d.value,d.defRate+'%']})).reverse();
+  return {
+    sub:'Click a point or bar for that sprint\'s numbers. Shaded columns are what this chart plots.',
+    table:sel=>cmRows(heads,rows,sel?{ds:0,i:sel.i}:null,CM_HL[key]),   // any series (bar, line, or the dashed goal line) selects that sprint's row
+    summary:(ds,i)=>data[i]&&CM_SUMMARY[key]?CM_SUMMARY[key](data[i]):''
+  };
+}
+// ---- Financial charts: the invoices / months behind them ----
+function finBudgetNow(){let st={};try{st=JSON.parse(localStorage.getItem(LS_BUDGET)||'{}');}catch(e){}return st.modBudget!=null?st.modBudget:BUDGET_DEFAULTS.modBudget;}
+function finDetail(key){
+  const f=loadFin(),ser=finSeries(f),modBudget=finBudgetNow();
+  if(key==='mod'||key==='leg'){
+    const pts=key==='mod'?ser.mod:ser.leg,budget=key==='mod'?modBudget:LEGACY_FY26_BUDGET,label=key==='mod'?'Modernization':'Legacy';
+    const rows=pts.map((r,i)=>({ds:0,i,cells:[msFull(dateMs(r.date)),finEsc(r.inv),money(r.amt),money(r.cum),(budget?(r.cum/budget*100).toFixed(1):'0')+'%']})).reverse();
+    return {
+      sub:'Each point is one invoice'+(key==='mod'?' (Development only — Discovery is excluded)':'')+'. Click a point for the invoice.',
+      table:sel=>cmRows(['Invoice date','Invoice #',label,'Cumulative','% of budget'],rows,sel,[3]),
+      summary:(ds,i)=>ds===0&&pts[i]?'<b>Invoice '+finEsc(pts[i].inv)+'</b> · '+msFull(dateMs(pts[i].date))+' — '+money(pts[i].amt)+' · cumulative <b>'+money(pts[i].cum)+'</b> ('+(budget?(pts[i].cum/budget*100).toFixed(1):0)+'% of the '+money(budget)+' budget)':''
+    };
+  }
+  if(key==='pct'){
+    const pcts=finPctSorted(f);
+    const lsMod=parseFloat(String(localStorage.getItem(LS_MOD)||'').replace(/[^0-9.]/g,''))||(ser.mod.length?last(ser.mod).cum:0);
+    const savedPct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
+    const comp=!isNaN(savedPct)?savedPct:(pcts.length?last(pcts).pct:null);
+    const spent=modBudget?lsMod/modBudget*100:0;
+    const gap=comp!=null?spent-comp:null;
+    const sub=comp!=null?'Latest: <b>'+spent.toFixed(1)+'%</b> of budget spent vs <b>'+comp+'%</b> complete — spend is '+Math.abs(gap).toFixed(1)+' pts '+(gap>0?'ahead of':'behind')+' progress.':'Click a point for details.';
+    const r0=ser.mod.map((r,i)=>({ds:0,i,cells:[msFull(dateMs(r.date)),finEsc(r.inv),money(r.cum),(modBudget?(r.cum/modBudget*100).toFixed(1):'0')+'%']})).reverse();
+    const r1=pcts.map((r,i)=>({ds:1,i,cells:[msFull(dateMs(r.date)),r.pct+'%']})).reverse();
+    return {
+      sub:sub,
+      table:sel=>'<h4>Spend by invoice (against the '+money(modBudget)+' budget)</h4>'+cmRows(['Invoice date','Invoice #','Cumulative spend','% of budget'],r0,sel,[3])+'<h4>% complete history</h4>'+cmRows(['Date','% complete'],r1,sel,[1]),
+      summary:(ds,i)=>ds===0&&ser.mod[i]?'<b>'+msFull(dateMs(ser.mod[i].date))+'</b> — '+(modBudget?(ser.mod[i].cum/modBudget*100).toFixed(1):0)+'% of budget spent ('+money(ser.mod[i].cum)+' after invoice '+finEsc(ser.mod[i].inv)+')':
+                       ds===1&&pcts[i]?'<b>'+msFull(dateMs(pcts[i].date))+'</b> — <b>'+pcts[i].pct+'%</b> complete':''
+    };
+  }
+  if(key==='burn'){
+    const burn=finBurn(f),months=Object.keys(burn).sort(),people=finPeople(burn);
+    const cell=(m,p)=>burn[m][p]||0,mt=m=>people.reduce((s,p)=>s+cell(m,p),0);
+    const rows=months.map((m,i)=>({ds:0,i,cells:[monthLabel(m)].concat(people.map(p=>money(cell(m,p)))).concat(['<b>'+money(mt(m))+'</b>'])})).reverse();
+    return {
+      sub:'Click a bar for that month\'s breakdown. Amounts are by service period.',
+      table:sel=>cmRows(['Month'].concat(people.map(finEsc)).concat(['Total']),rows,{ds:0,i:sel?sel.i:-1},null),
+      summary:(ds,i)=>months[i]?'<b>'+monthLabel(months[i])+'</b> — total <b>'+money(mt(months[i]))+'</b>: '+people.filter(p=>cell(months[i],p)).map(p=>finEsc(p)+' '+money(cell(months[i],p))).join(' · '):''
+    };
+  }
+  return null;
+}
+function last(a){return a[a.length-1];}
+function cmDetailFor(canvasId){
+  if(canvasId.indexOf('fchart-')===0)return finDetail(canvasId.slice(7));
+  if(canvasId.indexOf('chart-')===0)return sprintDetail(canvasId.slice(6));
+  return null;
+}
+function cmRender(){
+  const t=document.getElementById('cm-table');if(!t||!cmMeta)return;
+  t.innerHTML=cmMeta.table(cmSel);
+  const hl=t.querySelector&&t.querySelector('tr.cm-hl');if(hl&&hl.scrollIntoView)hl.scrollIntoView({block:'nearest'});
+}
+function cmSelect(ds,i){
+  if(!cmMeta)return;
+  const text=cmMeta.summary(ds,i);if(!text)return;
+  cmSel={ds,i};
+  document.getElementById('cm-selected').innerHTML=text;
+  cmRender();
+}
+function openChartModal(canvasId){
+  const src=document.getElementById(canvasId);
+  if(!src||typeof Chart==='undefined'||!Chart.getChart)return;
+  const chart=Chart.getChart(src);if(!chart)return;
+  closeChartModal();
+  const card=src.closest?src.closest('.chart-card'):null,h3=card&&card.querySelector?card.querySelector('h3'):null;
+  const cfg=chart.config;
+  const opts=cloneDeep(cfg.options)||{};
+  opts.responsive=true;opts.maintainAspectRatio=false;
+  opts.interaction=cfg.type==='bar'?{mode:'index',intersect:false}:{mode:'nearest',axis:'x',intersect:false};
+  opts.onClick=(evt,els)=>{if(els&&els.length)cmSelect(els[0].datasetIndex,els[0].index);};
+  Object.keys(opts.scales||{}).forEach(k=>{const sc=opts.scales[k];sc.ticks=sc.ticks||{};sc.ticks.font={size:12};if(sc.title&&sc.title.font)sc.title.font={size:12};});
+  if(opts.plugins&&opts.plugins.legend&&opts.plugins.legend.labels)opts.plugins.legend.labels={...opts.plugins.legend.labels,boxWidth:12,font:{size:12}};
+  const data=cloneDeep(cfg.data);
+  (data.datasets||[]).forEach(ds=>{ds.pointHitRadius=14;if(ds.pointRadius>0)ds.pointRadius=ds.pointRadius+1.5;});
+  cmMeta=cmDetailFor(canvasId);cmSel=null;
+  document.getElementById('cm-title').textContent=h3?h3.textContent:'';
+  document.getElementById('cm-sub').innerHTML=cmMeta?cmMeta.sub:'';
+  document.getElementById('cm-selected').innerHTML='Click a point or bar for details. Press Esc or click outside to close.';
+  if(cmMeta)cmRender();else document.getElementById('cm-table').innerHTML='';
+  document.getElementById('chart-modal').style.display='flex';
+  if(document.body)document.body.style.overflow='hidden';
+  cmChart=new Chart(document.getElementById('cm-canvas'),{type:cfg.type,data:data,options:opts,plugins:cfg.plugins||[]});
+}
+function closeChartModal(){
+  if(cmChart){try{cmChart.destroy();}catch(e){}cmChart=null;}
+  cmMeta=null;cmSel=null;
+  const m=document.getElementById('chart-modal');if(m)m.style.display='none';
+  if(document.body)document.body.style.overflow='';
+}
+function initChartExpand(){
+  document.querySelectorAll('.chart-card').forEach(card=>{
+    const cv=card.querySelector('canvas');if(!cv)return;
+    card.title='Click to enlarge';
+    // capture phase: opens the pop-up instead of toggling legend items on the small chart
+    card.addEventListener('click',e=>{e.stopPropagation();openChartModal(cv.id);},true);
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChartModal();});
+}
+// ══ CHART EXPAND END
+
 // ── UTILS ────────────────────────────────────────────────────────────────────
 function cp(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent||el.innerText).then(()=>{});}
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.style.display='block';el.textContent=msg;}}
@@ -1855,6 +2030,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   restoreLastSprint();
   renderProcessedHistory();
   renderFinData();
+  initChartExpand();
   if(isEmbedded){const mb=document.getElementById('manage-btn-top');if(mb)mb.style.display='none';const vt=document.getElementById('view-tabs');if(vt)vt.style.display='none';}
 });
 </script>
