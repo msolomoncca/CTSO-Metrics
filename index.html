@@ -17,6 +17,9 @@ h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 .manage-btn:hover{background:#f0f0f0;color:#1a1a1a}
 .manage-btn.on{background:#1a3a6b;color:#fff;border-color:#1a3a6b}
 .view-tabs{display:flex;gap:6px;margin-bottom:1rem}
+#preview-bar{display:none;align-items:center;justify-content:space-between;background:#fff4d6;color:#7a5c00;border-radius:8px;padding:7px 12px;font-size:12px;margin-bottom:12px}
+#preview-bar a{color:#7a5c00;font-weight:600}
+#pub-status a{color:inherit}
 table.data-tbl.fin{min-width:0}
 table.data-tbl.fin td:first-child{text-align:left}
 .fin-add{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px}
@@ -65,6 +68,13 @@ table.data-tbl.fin td:first-child{text-align:left}
 .goals-box{background:#f0f4ff;border-radius:10px;padding:12px 16px;margin-bottom:1.5rem}
 .goals-box h3{font-size:12px;font-weight:600;color:#1a3a6b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
 .goals-list{display:flex;flex-direction:column;gap:4px}
+.goal-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #eee}
+.goal-text{flex:1;font-size:13px;line-height:1.4;cursor:text;border-radius:4px;padding:1px 4px;word-break:break-word}
+.goal-text:hover{background:#eef3fb}
+.goal-x{border:none;background:none;color:#bbb;font-size:18px;line-height:1;cursor:pointer;padding:0 6px;border-radius:6px}
+.goal-x:hover{color:#c00;background:#fdeaea}
+.goal-add{display:flex;gap:8px;margin-top:10px;align-items:center}
+.goal-add input{flex:1}
 .goal-item{font-size:13px;color:#333;display:flex;align-items:flex-start;gap:8px}
 .goal-item::before{content:"•";color:#1a3a6b;font-weight:bold;flex-shrink:0;margin-top:1px}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
@@ -136,8 +146,10 @@ input[type=file]{display:none}
 <body>
 <div class="container">
 
+<div id="preview-bar"><span>&#128065; You're previewing what everyone else sees.</span><a href="#" onclick="exitViewerPreview();return false">Back to my view</a></div>
+
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;border-bottom:1px solid #e5e5e5;padding-bottom:1rem">
-  <h1 style="margin:0">CTS/O Metrics Hub</h1>
+  <div><h1 style="margin:0">CTS/O Metrics Hub</h1><div id="pub-status" style="font-size:11px;color:#888;margin-top:3px"></div></div>
   <button id="manage-btn-top" onclick="toggleManage(this)" style="font-size:12px;padding:5px 12px;cursor:pointer;border-radius:8px;border:1px solid #ddd;background:#fff;color:#666;display:flex;align-items:center;gap:5px">
     <span>⚙</span> <span id="manage-label">Manage</span>
   </button>
@@ -277,7 +289,7 @@ input[type=file]{display:none}
   </div>
   <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <button class="btn" onclick="showAddForm()">+ Add / edit sprint data</button>
-    <button class="btn" onclick="exportForPublishing()">📦 Export for publishing (Confluence embed)</button>
+    <button class="btn" onclick="publishPanel()">📤 Publish for everyone</button>
     <span style="font-size:11px;color:#888">Saved automatically in your browser</span>
   </div>
   <div id="export-output" style="margin-top:10px"></div>
@@ -527,20 +539,21 @@ const SEED=[
 const isEmbedded=(function(){try{return window.self!==window.top;}catch(e){return true;}})();
 
 function loadSprints(){
-  if(isEmbedded){
-    // Embedded (e.g. Confluence iframe): browsers give iframes a separate, isolated storage bucket even on the
-    // same URL, so edits made on the site itself never reach here. Show the deliberately "published" SEED snapshot.
-    return SEED;
+  if(!isOwner()){
+    // Viewers (and the Confluence embed) see what you last published; if that file isn't there yet they see the built-in
+    // snapshot. Nothing is ever written to a viewer's browser.
+    return (PUBLISHED&&PUBLISHED.sprints&&PUBLISHED.sprints.length)?PUBLISHED.sprints:SEED;
   }
   try{
     const raw=localStorage.getItem(LS_SPRINTS);
     if(raw){const d=JSON.parse(raw);if(d&&d.length)return d;}
   }catch(e){}
-  // First load — seed with historical data
-  localStorage.setItem(LS_SPRINTS,JSON.stringify(SEED));
-  return SEED;
+  // First load for the owner — seed with the latest published data (or the built-in snapshot)
+  const seed=(PUBLISHED&&PUBLISHED.sprints&&PUBLISHED.sprints.length)?PUBLISHED.sprints:SEED;
+  localStorage.setItem(LS_SPRINTS,JSON.stringify(seed));
+  return seed;
 }
-function saveSprints(data){localStorage.setItem(LS_SPRINTS,JSON.stringify(data));}
+function saveSprints(data){localStorage.setItem(LS_SPRINTS,JSON.stringify(data));if(typeof updatePubStatus==='function')updatePubStatus();}
 
 function derived(s){
   const pctAchieved=s.goals>0?Math.round(s.goalsmet/s.goals*100):0;
@@ -621,7 +634,7 @@ function renderDashboard(){
   document.getElementById('dc-avgvel').textContent=avgVel+' pts';
   document.getElementById('dc-done-card').className='metric-card';
   // Project % complete from epic CSV (localStorage)
-  const savedEpicPct=localStorage.getItem(LS_EPIC_PCT);
+  const savedEpicPct=currentPctForDashboard();
   const epicPctEl=document.getElementById('dc-epicpct');
   const epicPctCard=document.getElementById('dc-epicpct-card');
   if(savedEpicPct){
@@ -761,10 +774,13 @@ function saveSprint(){
 // ── SPRINT GOALS ON DASHBOARD ──────────────────────────────────────────────
 let S_PARSED=null;
 function updateDashGoals(){
-  if(!S_PARSED||!S_PARSED.goals||!S_PARSED.goals.length) return;
-  const box=document.getElementById('dash-goals-box');
-  const list=document.getElementById('dash-goals-list');
-  list.innerHTML=S_PARSED.goals.map(g=>`<div class="goal-item">${g}</div>`).join('');
+  const box=document.getElementById('dash-goals-box'),list=document.getElementById('dash-goals-list');
+  if(!box||!list)return;
+  let goals=null;
+  if(isOwner()){if(S_PARSED&&S_PARSED.goals&&S_PARSED.goals.length)goals=S_PARSED.goals;}
+  else if(PUBLISHED&&PUBLISHED.currentSprint&&PUBLISHED.currentSprint.goals&&PUBLISHED.currentSprint.goals.length)goals=PUBLISHED.currentSprint.goals;
+  if(!goals)return;
+  list.innerHTML=goals.map(g=>`<div class="goal-item">${finEsc(g)}</div>`).join('');
   box.style.display='block';
 }
 
@@ -840,7 +856,13 @@ function runParse(){
   const txt=document.getElementById('paste').value.trim();
   if(!txt){showErr('s-err','Paste sprint report text first.');return;}
   clearErr('s-err');
+  const prevParsed=S_PARSED;
   S_PARSED=parseSprint(txt);
+  S_PARSED.goalsParsed=(S_PARSED.goals||[]).slice();     // what the report itself says (used by "Reset to the report's goals")
+  // re-parsing the same sprint (e.g. refreshing progress mid-sprint) keeps goals you've hand-edited
+  if(prevParsed&&prevParsed.goalsEdited&&prevParsed.sprint_number&&prevParsed.sprint_number===S_PARSED.sprint_number){
+    S_PARSED.goals=prevParsed.goals;S_PARSED.goalsDone=prevParsed.goalsDone;S_PARSED.goalsEdited=true;
+  }
   renderSprint(S_PARSED);
   const diff=computeNewVsReported(S_PARSED);
   renderCoverageBanner(diff);
@@ -898,10 +920,22 @@ function startNewSprint(){
 }
 
 function parseGoals(txt){
+  const flat=String(txt||'').replace(/\n/g,' ');
+  // A goal starts at "N. " (N rising from 1 or 2) followed by a letter or an opening bracket/quote — not only a capital,
+  // so "4. (stretch goal) ..." and lower-case wording split correctly. Version numbers like "1.10" have no space, so they never match.
+  const re=/(?:^|\s)(\d{1,2})\.\s+(?=[A-Za-z(\[“"'])/g;
+  const marks=[];let m,last=0;
+  while((m=re.exec(flat))!==null){
+    const n=parseInt(m[1],10);
+    if(last===0?(n<=2):(n>last&&n<=last+2)){marks.push({numStart:m.index+m[0].lastIndexOf(m[1]),textStart:re.lastIndex});last=n;}
+  }
   const goals=[];
-  txt.replace(/\n/g,' ').split(/(?=\d+\.\s+[A-Z])/).forEach(p=>{
-    const m=p.match(/^\d+\.\s+(.+)/);
-    if(m){let c=m[1].replace(/\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d.*/,'').replace(/\s*(Guideline|Remaining|Sprint actions|Active sprint|Story Points).*/i,'').trim();if(c.length>8&&c.length<400)goals.push(c);}
+  marks.forEach((mk,i)=>{
+    const end=i+1<marks.length?marks[i+1].numStart:flat.length;
+    const c=flat.slice(mk.textStart,end)
+      .replace(/\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d.*/,'')
+      .replace(/\s*(Guideline|Remaining Values|Sprint actions|Active sprint|Story Points)\b.*/,'').trim();   // only the chart labels, case-sensitive — so a goal that says "remaining" isn't cut short
+    if(c.length>8&&c.length<400)goals.push(c);
   });
   return goals;
 }
@@ -991,7 +1025,7 @@ function renderSprint(p){
   const gc=p.goals.length;
   document.getElementById('s-out').innerHTML=`
     <div class="grid-cards">
-      ${[['Sprint',p.sprint_name,'font-size:12px',''],['Goals',gc,'',''],['Committed',committed,'',''],['Completed',compPts,'','color:#1e6e3a'],['Rolling over',rollover,'','color:#7a5c00']].map(([l,v,vs,vc])=>`<div class="card"><p class="lbl">${l}</p><p class="val" style="${vs};${vc}">${v}</p></div>`).join('')}
+      ${[['Sprint',p.sprint_name,'font-size:12px',''],['Goals',gc,'',''],['Committed',committed,'',''],['Completed',compPts,'','color:#1e6e3a'],['Rolling over',rollover,'','color:#7a5c00']].map(([l,v,vs,vc])=>`<div class="card"><p class="lbl">${l}</p><p class="val"${l==='Goals'?' id="s-goals-val"':''} style="${vs};${vc}">${v}</p></div>`).join('')}
     </div>
     <div class="stab-row">
       <button class="tab on" id="st0" onclick="stab(0,this)">Metrics</button>
@@ -1006,7 +1040,7 @@ function renderSprint(p){
       <button class="btn" style="margin-top:8px" onclick="saveFromSprintTab()">Save to Dashboard</button>
     </div>
     <div id="sv1" style="display:none">
-      ${gc?p.goals.map((g,i)=>`<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #eee"><input type="checkbox" id="g${i}" style="margin-top:2px;cursor:pointer"><label for="g${i}" style="font-size:13px;cursor:pointer;line-height:1.4">${g}</label></div>`).join('')+`<div style="margin-top:10px;display:flex;align-items:center;gap:10px"><button class="btn" onclick="tally()">Tally goals</button><span id="gtally" style="font-size:13px;color:#666"></span></div>`:'<p style="font-size:13px;color:#888">No goals found.</p>'}
+      <div id="goals-editor"></div>
     </div>
     <div id="sv2" style="display:none">
       <p class="sec">Confluence metrics row</p>
@@ -1017,6 +1051,7 @@ function renderSprint(p){
       <button class="btn" style="margin-top:6px" onclick="cp('sc1')">Copy</button>
     </div>
     <div id="prefill-notice" style="font-size:12px;color:#1254a0;background:#e3f0fd;border-radius:8px;padding:8px 12px;margin-top:8px">&#9998; Goal areas in the Email tab pre-filled from sprint tickets — review and edit before generating.</div>`;
+  renderGoalsEditor();
 }
 
 function saveFromSprintTab(){
@@ -1041,7 +1076,12 @@ function saveFromSprintTab(){
 }
 
 function stab(n,btn){[0,1,2].forEach(i=>{const v=document.getElementById('sv'+i);if(v)v.style.display=i===n?'block':'none';});document.querySelectorAll('.stab-row .tab').forEach(b=>b.className='tab');btn.className='tab on';}
-function tally(){const boxes=document.querySelectorAll('[id^="g"]');const done=[...boxes].filter(b=>b.checked).length;const el=document.getElementById('gtally');if(el)el.textContent=done+'/'+boxes.length+' achieved ('+Math.round(done/boxes.length*100)+'%)';const m3=document.getElementById('m3');if(m3)m3.value=done;}
+function tally(){
+  // counts from the saved goal state (not from page elements), so the total is always exactly the number of goals
+  const done=goalsDone();const n=done.length,c=done.filter(Boolean).length;
+  const el=document.getElementById('gtally');if(el)el.textContent=n?(c+'/'+n+' achieved ('+Math.round(c/n*100)+'%)'):'';
+  const m3=document.getElementById('m3');if(m3)m3.value=c;
+}
 
 function preFillGoals(p, itemsOverride){
   const items=itemsOverride||p.completed;
@@ -1102,6 +1142,7 @@ function renderEpicsWithAdj(ipAdjPct){
 
   localStorage.setItem(LS_EPIC_PCT, pct);
   recordPct(pct);
+  if(typeof updatePubStatus==='function')updatePubStatus();
   const epicPctEl=document.getElementById('dc-epicpct');
   if(epicPctEl){epicPctEl.textContent=pct+'%';epicPctEl.style.fontSize='';epicPctEl.style.color='';}
 
@@ -2014,6 +2055,186 @@ function initChartExpand(){
 }
 // ══ CHART EXPAND END
 
+
+
+// ══ GOALS EDITOR BEGIN — goals parsed from the sprint report can be reworded, added, removed and ticked off ══
+function goalsDone(){const g=(S_PARSED&&S_PARSED.goals)||[],d=(S_PARSED&&S_PARSED.goalsDone)||[];return g.map((_,i)=>!!d[i]);}
+function persistSprintContext(){try{localStorage.setItem(LS_LAST_SPRINT,JSON.stringify({...S_PARSED,savedAt:Date.now()}));}catch(e){}}
+// push the new goal count / wording to everything that shows it
+function syncGoalsUI(){
+  if(!S_PARSED)return;
+  const n=(S_PARSED.goals||[]).length;
+  const setV=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  setV('m2',n);setV('f-goals',n);
+  const card=document.getElementById('s-goals-val');if(card)card.textContent=n;
+  const tab=document.getElementById('st1');if(tab)tab.textContent='Goals ('+n+')';
+  const sc0=document.getElementById('sc0');if(sc0)sc0.textContent=sc0.textContent.replace(/# Sprint goals:\s+\d+/,'# Sprint goals:  '+n);
+  if(n)updateDashGoals();else{const box=document.getElementById('dash-goals-box');if(box)box.style.display='none';}
+}
+function goalsSave(){S_PARSED.goalsEdited=true;persistSprintContext();syncGoalsUI();renderGoalsEditor();}
+function goalSetText(i,text){
+  if(!S_PARSED||!S_PARSED.goals||i<0||i>=S_PARSED.goals.length)return false;
+  const t=String(text==null?'':text).replace(/\s+/g,' ').trim();
+  if(!t)return false;                               // a blank edit keeps the old wording — use × to remove a goal
+  S_PARSED.goals[i]=t;goalsSave();return true;
+}
+function goalAdd(text){
+  const t=String(text==null?'':text).replace(/\s+/g,' ').trim();
+  if(!S_PARSED||!t)return false;
+  const done=goalsDone();S_PARSED.goals=S_PARSED.goals||[];
+  S_PARSED.goals.push(t);done.push(false);S_PARSED.goalsDone=done;goalsSave();return true;
+}
+function goalRemove(i){
+  if(!S_PARSED||!S_PARSED.goals||i<0||i>=S_PARSED.goals.length)return false;
+  const done=goalsDone();S_PARSED.goals.splice(i,1);done.splice(i,1);S_PARSED.goalsDone=done;goalsSave();return true;
+}
+function goalToggle(i,checked){
+  if(!S_PARSED)return;const d=goalsDone();d[i]=!!checked;S_PARSED.goalsDone=d;persistSprintContext();
+}
+function goalsReset(){
+  if(!S_PARSED)return;
+  S_PARSED.goals=(S_PARSED.goalsParsed||[]).slice();S_PARSED.goalsDone=[];S_PARSED.goalsEdited=false;
+  persistSprintContext();syncGoalsUI();renderGoalsEditor();
+}
+function renderGoalsEditor(){
+  const host=document.getElementById('goals-editor');if(!host)return;
+  const goals=(S_PARSED&&S_PARSED.goals)||[],done=goalsDone();
+  const rows=goals.map((g,i)=>'<div class="goal-row"><input type="checkbox" id="g'+i+'"'+(done[i]?' checked':'')+' onchange="goalToggle('+i+',this.checked)" style="margin-top:2px;cursor:pointer">'+
+    '<span class="goal-text" title="Click to edit" onclick="startGoalEdit('+i+',this)">'+finEsc(g)+'</span>'+
+    '<button class="goal-x" title="Remove this goal" onclick="goalRemoveUI('+i+')">&times;</button></div>').join('');
+  host.innerHTML=(goals.length?rows:'<p style="font-size:13px;color:#888">No goals found &mdash; add them below.</p>')+
+    '<div class="goal-add"><input type="text" id="goal-new" placeholder="Add a goal&hellip;" onkeydown="if(event.key===\'Enter\')goalAddUI()"><button class="btn" onclick="goalAddUI()">Add goal</button></div>'+
+    '<div style="margin-top:10px;display:flex;align-items:center;gap:10px"><button class="btn" onclick="tally()">Tally goals</button><span id="gtally" style="font-size:13px;color:#666"></span>'+
+      (S_PARSED&&S_PARSED.goalsEdited&&(S_PARSED.goalsParsed||[]).length?'<button class="btn" style="margin-left:auto;color:#888" onclick="goalsResetUI()">&#8634; Reset to the report&#39;s goals</button>':'')+'</div>'+
+    '<p class="hint" style="margin-top:8px">Click a goal to edit its wording. Changes save automatically and update the goal count everywhere.</p>';
+}
+function startGoalEdit(i,span){
+  if(span.querySelector&&span.querySelector('input'))return;
+  const cur=(S_PARSED&&S_PARSED.goals&&S_PARSED.goals[i])||'';
+  const input=document.createElement('input');input.type='text';input.className='editable-input';input.value=cur;input.style.width='100%';
+  span.textContent='';span.appendChild(input);input.focus();if(input.select)input.select();
+  let done=false;
+  const commit=()=>{if(done)return;done=true;if(!goalSetText(i,input.value))renderGoalsEditor();};
+  input.addEventListener('blur',commit);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();commit();}
+    if(e.key==='Escape'){done=true;renderGoalsEditor();}
+  });
+}
+function goalAddUI(){
+  const el=document.getElementById('goal-new');if(!el)return;
+  if(!goalAdd(el.value)){if(el.focus)el.focus();return;}
+  const again=document.getElementById('goal-new');if(again&&again.focus)again.focus();
+}
+function goalRemoveUI(i){
+  const t=S_PARSED&&S_PARSED.goals?S_PARSED.goals[i]:'';
+  if(!confirm('Remove this goal?\n\n'+t))return;
+  goalRemove(i);
+}
+function goalsResetUI(){if(confirm("Reset the goals to what the sprint report says? Your edits and ticks for this sprint will be replaced."))goalsReset();}
+// ══ GOALS EDITOR END
+
+
+// ══ SHARING BEGIN — what other people see comes from hub-data.json; your working data stays in your browser ══
+const PUBLISHED_URL='hub-data.json';
+const LS_OWNER='ctso_owner';              // localStorage: this browser is the owner's
+const SS_PREVIEW='ctso_preview_viewer';   // sessionStorage: this tab is previewing the viewer experience
+let PUBLISHED=null;
+function sget(k){try{return sessionStorage.getItem(k);}catch(e){return null;}}
+function clearHash(){try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}}
+function isOwner(){
+  if(isEmbedded)return false;
+  if(sget(SS_PREVIEW)==='1')return false;
+  try{
+    if(localStorage.getItem(LS_OWNER)==='1')return true;
+    // a browser that already holds your working data (invoices, epic %, budgets …) is yours — claim it automatically
+    if([LS_MOD,LS_PROCESSED_INV,LS_FIN,LS_LAST_SPRINT,LS_BUDGET,LS_EPIC_PCT,LS_REPORTED].some(k=>localStorage.getItem(k))){localStorage.setItem(LS_OWNER,'1');return true;}
+  }catch(e){}
+  return false;
+}
+// open the page with #owner once on a new browser/device to make it yours; #viewer previews the viewer experience
+function handleRoleHash(){
+  const h=String(location.hash||'').toLowerCase();
+  if(h==='#owner'){try{localStorage.setItem(LS_OWNER,'1');sessionStorage.removeItem(SS_PREVIEW);}catch(e){}clearHash();return true;}
+  if(h==='#viewer'){try{sessionStorage.setItem(SS_PREVIEW,'1');}catch(e){}clearHash();return true;}
+  return false;
+}
+function previewAsViewer(){try{sessionStorage.setItem(SS_PREVIEW,'1');}catch(e){}location.reload();}
+function exitViewerPreview(){try{sessionStorage.removeItem(SS_PREVIEW);}catch(e){}location.reload();}
+function applyRoleUI(){
+  const owner=isOwner();
+  const mb=document.getElementById('manage-btn-top');if(mb)mb.style.display=owner?'flex':'none';
+  const vt=document.getElementById('view-tabs');if(vt)vt.style.display=owner?'flex':'none';
+  const pb=document.getElementById('preview-bar');if(pb)pb.style.display=(!isEmbedded&&sget(SS_PREVIEW)==='1')?'flex':'none';
+}
+function loadPublished(){
+  return fetch(PUBLISHED_URL+'?t='+Date.now(),{cache:'no-store'})
+    .then(r=>{if(!r.ok)throw new Error('http '+r.status);return r.json();})
+    .then(d=>{if(d&&d.version===1&&Array.isArray(d.sprints)&&d.sprints.length){PUBLISHED=d;return d;}throw new Error('unexpected file');})
+    .catch(()=>null);
+}
+function recheckPublished(){loadPublished().then(updatePubStatus);return false;}
+function currentPctForDashboard(){
+  if(isOwner())return localStorage.getItem(LS_EPIC_PCT);
+  return PUBLISHED&&PUBLISHED.pctComplete!=null?String(PUBLISHED.pctComplete):null;
+}
+function sprintRow(d){return {sprint:d.sprint,release:d.release,goals:d.goals,goalsmet:d.goalsmet,committed:d.committed,done:d.done,cycle:d.cycle,lead:d.lead,defects:d.defects,value:d.value};}
+// only delivery numbers are ever published — never financial data
+function buildPublishData(includeGoals){
+  const out={version:1,published:new Date().toISOString(),sprints:loadSprints().map(sprintRow)};
+  const pct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
+  if(!isNaN(pct))out.pctComplete=pct;
+  if(includeGoals&&S_PARSED&&S_PARSED.goals&&S_PARSED.goals.length)out.currentSprint={name:S_PARSED.sprint_name||('Sprint '+S_PARSED.sprint_number),goals:S_PARSED.goals.slice()};
+  return out;
+}
+function pubSig(sprints,pct){
+  const p=(pct==null||isNaN(parseFloat(pct)))?null:parseFloat(pct);
+  return JSON.stringify([sprints.map(d=>[d.sprint,d.release,d.goals,d.goalsmet,d.committed,d.done,d.cycle,d.lead,d.defects,d.value]),p]);
+}
+function hasUnpublishedChanges(){
+  if(!PUBLISHED)return true;
+  return pubSig(loadSprints(),localStorage.getItem(LS_EPIC_PCT))!==pubSig(PUBLISHED.sprints,PUBLISHED.pctComplete);
+}
+function fmtDate(iso){try{return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch(e){return '';}}
+function updatePubStatus(){
+  const el=document.getElementById('pub-status');if(!el)return;
+  if(isOwner()){
+    const re=' <a href="#" onclick="return recheckPublished()" title="Check the published file again">&#8635; check again</a>';
+    if(!PUBLISHED)el.innerHTML='<span style="color:#b26a00">Not published yet &mdash; others see the built-in snapshot. Manage &rarr; Sprint report &rarr; Publish for everyone.</span>'+re;
+    else if(hasUnpublishedChanges())el.innerHTML='<span style="color:#b26a00">&#9679; Unpublished changes</span> &middot; others see the version from '+fmtDate(PUBLISHED.published)+re;
+    else el.innerHTML='<span style="color:#1e6e3a">&#10003; Up to date for everyone</span> &middot; published '+fmtDate(PUBLISHED.published)+re;
+  } else {
+    el.textContent=PUBLISHED?('Data as of '+fmtDate(PUBLISHED.published)):'';
+  }
+}
+function publishPanel(){
+  const out=document.getElementById('export-output');if(!out)return;
+  const sp=loadSprints(),pct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
+  const gl=(S_PARSED&&S_PARSED.goals)?S_PARSED.goals.length:0;
+  out.innerHTML='<div style="background:#f0f4ff;border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.55">'+
+    '<p style="font-weight:600;margin-bottom:4px">Publish for everyone</p>'+
+    '<p>Creates <code>hub-data.json</code> with <b>'+sp.length+' sprints</b> (Sprint '+sp[0].sprint+'&ndash;'+sp[sp.length-1].sprint+')'+(isNaN(pct)?'':', project % complete <b>'+pct+'%</b>')+'. Only delivery numbers &mdash; never financial data.</p>'+
+    (gl?'<label style="display:flex;gap:8px;align-items:center;margin:8px 0;cursor:pointer"><input type="checkbox" id="pub-goals" checked> Show this sprint\'s '+gl+' goals on the dashboard</label>':'')+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn" onclick="downloadPublishFile()">&#11015; Download hub-data.json</button><button class="btn" onclick="previewAsViewer()">&#128065; Preview what others see</button></div>'+
+    '<div id="pub-msg" style="font-size:12px;color:#1e6e3a;min-height:16px"></div>'+
+    '<ol style="margin:6px 0 0 18px;color:#444"><li>In your GitHub repo, click <b>Add file &rarr; Upload files</b> and drop in <code>hub-data.json</code> (the same name replaces the old one), then <b>Commit</b>.</li>'+
+    '<li>Wait a minute or two and refresh this page &mdash; the line under the title turns green when everyone is up to date.</li></ol></div>';
+}
+function downloadPublishFile(){
+  const inc=document.getElementById('pub-goals');
+  const txt=JSON.stringify(buildPublishData(inc?inc.checked:false),null,1);
+  const msg=document.getElementById('pub-msg');
+  try{
+    const url=URL.createObjectURL(new Blob([txt],{type:'application/json'}));
+    const a=document.createElement('a');a.href=url;a.download='hub-data.json';document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    if(msg)msg.textContent='\u2713 Downloaded hub-data.json \u2014 now upload it to GitHub (steps below).';
+  }catch(e){
+    if(msg)msg.innerHTML='Your browser blocked the download &mdash; copy this into a file named <b>hub-data.json</b>:<textarea rows="8" readonly style="width:100%;font-family:monospace;font-size:11px;margin-top:6px">'+txt.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>';
+  }
+}
+// ══ SHARING END
+
 // ── UTILS ────────────────────────────────────────────────────────────────────
 function cp(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent||el.innerText).then(()=>{});}
 function showErr(id,msg){const el=document.getElementById(id);if(el){el.style.display='block';el.textContent=msg;}}
@@ -2026,12 +2247,21 @@ window.addEventListener('DOMContentLoaded',()=>{
   ['b-fy27-budget','b-fy27-actual','b-mod-budget','b-mod-var'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.addEventListener('input',saveBudgetSettings);
   });
-  renderDashboard();
+  handleRoleHash();
+  applyRoleUI();
+  if(isOwner()){
+    renderDashboard();
+    loadPublished().then(updatePubStatus);
+  } else {
+    // viewers wait (briefly) for the published file so they never see old numbers flash by
+    const ps=document.getElementById('pub-status');if(ps)ps.textContent='Loading latest data…';
+    Promise.race([loadPublished(),new Promise(r=>setTimeout(()=>r(null),4000))]).then(()=>{renderDashboard();updateDashGoals();updatePubStatus();});
+  }
   restoreLastSprint();
   renderProcessedHistory();
   renderFinData();
   initChartExpand();
-  if(isEmbedded){const mb=document.getElementById('manage-btn-top');if(mb)mb.style.display='none';const vt=document.getElementById('view-tabs');if(vt)vt.style.display='none';}
+  window.addEventListener('hashchange',()=>{if(handleRoleHash())location.reload();});
 });
 </script>
 </body>
