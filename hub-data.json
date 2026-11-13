@@ -1,0 +1,207 @@
+{
+ "version": 1,
+ "published": "2026-11-13T21:14:57.261Z",
+ "sprints": [
+  {
+   "sprint": 21,
+   "release": "Phase 1 release",
+   "goals": 2,
+   "goalsmet": 1,
+   "committed": 47,
+   "done": 28,
+   "cycle": 5,
+   "lead": 73.9,
+   "defects": 6,
+   "value": 25
+  },
+  {
+   "sprint": 22,
+   "release": "Phase 1 release",
+   "goals": 3,
+   "goalsmet": 1,
+   "committed": 53,
+   "done": 35,
+   "cycle": 19.54,
+   "lead": 89.83,
+   "defects": 1,
+   "value": 34
+  },
+  {
+   "sprint": 23,
+   "release": "Phase 1 release",
+   "goals": 5,
+   "goalsmet": 5,
+   "committed": 45,
+   "done": 45,
+   "cycle": 7.025,
+   "lead": 46.83,
+   "defects": 18,
+   "value": 40
+  },
+  {
+   "sprint": 24,
+   "release": "Release 1.1",
+   "goals": 2,
+   "goalsmet": 2,
+   "committed": 42,
+   "done": 44,
+   "cycle": 1.916,
+   "lead": 3.875,
+   "defects": 24,
+   "value": 15
+  },
+  {
+   "sprint": 25,
+   "release": "Release 1.2",
+   "goals": 2,
+   "goalsmet": 2,
+   "committed": 37,
+   "done": 46,
+   "cycle": 1.96,
+   "lead": 16.375,
+   "defects": 14,
+   "value": 32
+  },
+  {
+   "sprint": 26,
+   "release": "Release 1.3",
+   "goals": 3,
+   "goalsmet": 3,
+   "committed": 39,
+   "done": 31,
+   "cycle": 4.66,
+   "lead": 36.375,
+   "defects": 1,
+   "value": 30
+  },
+  {
+   "sprint": 27,
+   "release": "Release 1.4",
+   "goals": 4,
+   "goalsmet": 4,
+   "committed": 47,
+   "done": 49,
+   "cycle": 3.25,
+   "lead": 38.2,
+   "defects": 22,
+   "value": 27
+  },
+  {
+   "sprint": 28,
+   "release": "Release 1.5",
+   "goals": 4,
+   "goalsmet": 4,
+   "committed": 44,
+   "done": 45,
+   "cycle": 3.625,
+   "lead": 67,
+   "defects": 14,
+   "value": 31
+  },
+  {
+   "sprint": 29,
+   "release": "Release 1.6",
+   "goals": 3,
+   "goalsmet": 3,
+   "committed": 44,
+   "done": 44,
+   "cycle": 4,
+   "lead": 52.4,
+   "defects": 15,
+   "value": 29
+  },
+  {
+   "sprint": 30,
+   "release": "Release 1.7",
+   "goals": 3,
+   "goalsmet": 2,
+   "committed": 47,
+   "done": 32,
+   "cycle": 3.1,
+   "lead": 63,
+   "defects": 19,
+   "value": 13
+  },
+  {
+   "sprint": 31,
+   "release": "Release 1.8",
+   "goals": 2,
+   "goalsmet": 2,
+   "committed": 40,
+   "done": 42,
+   "cycle": 5,
+   "lead": 86.8,
+   "defects": 9,
+   "value": 33
+  },
+  {
+   "sprint": 32,
+   "release": "Release 1.9",
+   "goals": 3,
+   "goalsmet": 2,
+   "committed": 37,
+   "done": 29,
+   "cycle": 3.67,
+   "lead": 49.15,
+   "defects": 4,
+   "value": 25
+  },
+  {
+   "sprint": 33,
+   "release": "Release 1.10",
+   "goals": 3,
+   "goalsmet": 3,
+   "committed": 41,
+   "done": 41,
+   "cycle": 3.37,
+   "lead": 16.96,
+   "defects": 27,
+   "value": 14
+  },
+  {
+   "sprint": 34,
+   "release": "Release 1.11",
+   "goals": 4,
+   "goalsmet": 4,
+   "committed": 41,
+   "done": 41,
+   "cycle": 2.5,
+   "lead": 21.9,
+   "defects": 15,
+   "value": 26
+  },
+  {
+   "sprint": 35,
+   "release": "Release 1.12",
+   "goals": 2,
+   "goalsmet": 2,
+   "committed": 41,
+   "done": 50,
+   "cycle": 4.8,
+   "lead": 27.3,
+   "defects": 28,
+   "value": 13
+  },
+  {
+   "sprint": 36,
+   "release": "Release 1.13",
+   "goals": 3,
+   "goalsmet": 3,
+   "committed": 41,
+   "done": 39,
+   "cycle": 2.58,
+   "lead": 23.6,
+   "defects": 22,
+   "value": 28
+  }
+ ],
+ "pctComplete": 89.5,
+ "currentSprint": {
+  "name": "CTS/O Sprint 37",
+  "goals": [
+   "Finish the billing epic",
+   "CTSO member business/account management",
+   "High-priority bugs/improvements"
+  ]
+ }
+}
