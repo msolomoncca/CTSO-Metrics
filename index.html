@@ -20,6 +20,10 @@ h1{font-size:17px;font-weight:500;margin-bottom:1.25rem;color:#1a1a1a}
 #preview-bar{display:none;align-items:center;justify-content:space-between;background:#fff4d6;color:#7a5c00;border-radius:8px;padding:7px 12px;font-size:12px;margin-bottom:12px}
 #preview-bar a{color:#7a5c00;font-weight:600}
 #pub-status a{color:inherit}
+.ip-badge{background:#fff4d6;color:#7a5c00;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:600;white-space:nowrap}
+.ip-btn{font-size:10px!important;padding:1px 8px!important;margin-left:6px}
+table.data-tbl tr.ip td{background:#fff4d6!important}
+#ip-banner{display:none;background:#fff4d6;color:#7a5c00;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px;line-height:1.5}
 table.data-tbl.fin{min-width:0}
 table.data-tbl.fin td:first-child{text-align:left}
 .fin-add{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:10px}
@@ -171,6 +175,7 @@ input[type=file]{display:none}
     <button class="vt" id="vt-fin" onclick="showDashView('fin')">Financials</button>
   </div>
   <div id="dash-delivery">
+  <div id="ip-banner"></div>
   <!-- Metric cards -->
   <div class="metric-cards" id="dash-cards">
     <div class="metric-card"><p class="mc-lbl">Sprint</p><p class="mc-val" id="dc-sprint">—</p></div>
@@ -278,7 +283,7 @@ input[type=file]{display:none}
   <div class="data-table-wrap">
     <table class="data-tbl" id="source-table">
       <thead><tr>
-        <th>Sprint</th><th>Release</th><th># Goals</th><th>Goals Achieved</th>
+        <th>Sprint</th><th>Status</th><th>Release</th><th># Goals</th><th>Goals Achieved</th>
         <th>% Achieved</th><th>Goal % Target</th><th>SP Committed</th>
         <th>SP Done</th><th>% SP Complete</th><th>Cycle Time (days)</th>
         <th>Lead Time (days)</th><th>Fixes &amp; Improvements (pts)</th><th>Value (pts)</th>
@@ -310,6 +315,7 @@ input[type=file]{display:none}
       <div><p class="lbl">Value (points)</p><input type="number" id="f-value"></div>
     </div>
     <p class="hint" style="margin-top:8px">% Achieved, % SP Complete, and Fix &amp; Improvement Rate calculate automatically</p>
+    <label style="display:flex;gap:8px;align-items:center;font-size:12px;margin-top:8px;cursor:pointer"><input type="checkbox" id="f-inprogress"> Sprint still in progress &mdash; keep it out of the charts and the published data</label>
     <div style="margin-top:12px;display:flex;gap:8px">
       <button class="btn-primary btn" onclick="saveSprint()">Save sprint</button>
       <button class="btn" onclick="document.getElementById('add-form').style.display='none'">Cancel</button>
@@ -621,7 +627,16 @@ function statBanner(elId,txtId,met,text){
 
 function renderDashboard(){
   const raw=loadSprints();
-  const data=raw.map(derived);
+  const allRows=raw.map(derived);                          // every saved sprint — the editable table shows all of them
+  const data=chartSprints().map(derived);                  // completed sprints only — these drive the cards, charts and averages
+  const ipRows=allRows.filter(isInProgress);
+  const ipb=document.getElementById('ip-banner');
+  if(ipb){
+    if(isOwner()&&ipRows.length){
+      ipb.style.display='block';
+      ipb.innerHTML='&#128337; '+ipRows.map(d=>'<b>Sprint '+d.sprint+'</b> is in progress ('+d.done+' of '+d.committed+' SP done, '+d.goalsmet+' of '+d.goals+' goals so far)').join(' &middot; ')+' &mdash; it\'s in your table but kept out of the charts and the published data until you mark it complete (Manage &rarr; Sprint report).';
+    } else ipb.style.display='none';
+  }
   const labels=data.map(d=>'Sprint '+d.sprint);
   const latest=data[data.length-1];
 
@@ -652,14 +667,16 @@ function renderDashboard(){
   const EDITABLE=['release','goals','goalsmet','committed','done','cycle','lead','defects','value'];
   const LABELS={release:'Release',goals:'# Goals',goalsmet:'Goals Achieved',committed:'SP Committed',done:'SP Done',cycle:'Cycle Time',lead:'Lead Time',defects:'Fixes & Improvements (pts)',value:'Value (pts)'};
 
-  tbody.innerHTML=data.map((d,i)=>{
+  tbody.innerHTML=allRows.map((d,i)=>{
     const dd=derived(d);
-    const isCurrent=i===data.length-1;
-    const rowCls=isCurrent?'current':'';
+    const isCurrent=i===allRows.length-1;
+    const rowCls=isInProgress(d)?'ip':(isCurrent?'current':'');
+    const statusCell='<td>'+(isInProgress(d)?'<span class="ip-badge">In progress</span><button class="btn ip-btn" title="Add this sprint to the charts and the published data" onclick="setSprintStatusUI('+d.sprint+',\'complete\')">Mark complete</button>':'<span style="color:#1e6e3a">&#10003; Complete</span><button class="btn ip-btn" title="Un-publish: take this sprint out of the charts and the published data (it stays in your table as in progress)" onclick="setSprintStatusUI('+d.sprint+',\'inprogress\')">Un-publish</button>')+'</td>';
     const editCell=(field,val,type='number',step='1')=>
       `<td><span class="editable-cell" data-sprint="${d.sprint}" data-field="${field}" data-type="${type}" data-step="${step}" title="Click to edit" onclick="startEdit(this)">${val}</span></td>`;
     return `<tr class="${rowCls}">
       <td>Sprint ${d.sprint}</td>
+      ${statusCell}
       ${editCell('release',d.release,'text','')}
       ${editCell('goals',d.goals)}
       ${editCell('goalsmet',d.goalsmet)}
@@ -762,6 +779,8 @@ function saveSprint(){
   let data=loadSprints();
   const existing=data.findIndex(d=>d.sprint===sprintNum);
   const entry={sprint:sprintNum,release,goals,goalsmet,committed,done,cycle,lead,defects,value};
+  const ipBox=document.getElementById('f-inprogress');
+  if(ipBox&&ipBox.checked){entry.status='inprogress';ipBox.checked=false;}
   if(existing>=0) data[existing]=entry;
   else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
   saveSprints(data);
@@ -858,6 +877,7 @@ function runParse(){
   clearErr('s-err');
   const prevParsed=S_PARSED;
   S_PARSED=parseSprint(txt);
+  S_PARSED.closed=/Closed sprint/i.test(txt)?true:(/Active sprint/i.test(txt)?false:undefined);   // decides which save button is highlighted
   S_PARSED.goalsParsed=(S_PARSED.goals||[]).slice();     // what the report itself says (used by "Reset to the report's goals")
   // re-parsing the same sprint (e.g. refreshing progress mid-sprint) keeps goals you've hand-edited
   if(prevParsed&&prevParsed.goalsEdited&&prevParsed.sprint_number&&prevParsed.sprint_number===S_PARSED.sprint_number){
@@ -881,6 +901,7 @@ function runParse(){
     document.getElementById('f-done').value=compPts;
     document.getElementById('f-defects').value=defPts;
     document.getElementById('f-value').value=valPts;
+    const ipEl=document.getElementById('f-inprogress');if(ipEl)ipEl.checked=(S_PARSED.closed===false);
   }
   // Persist so it's available across sessions until "Start new sprint" is clicked
   try{
@@ -1037,7 +1058,11 @@ function renderSprint(p){
         ${[['Sprint #',p.sprint_number||'','number','m0'],['Release #','Release 1.4','text','m1'],['# Goals',gc,'number','m2'],['Goals achieved','','number','m3'],['SP committed',committed,'number','m4'],['SP done',compPts,'number','m5'],['Added',added,'number','m6'],['Removed',removed,'number','m7'],['Fixes & Improvements (pts)',defPts,'number','m8'],['Value (pts)',valPts,'number','m9'],['Cycle time','','number','m10'],['Lead time','','number','m11']].map(([l,v,t,id])=>`<div class="card"><p class="lbl">${l}</p><input type="${t}" id="${id}" value="${v}" placeholder="—" style="margin-top:4px"></div>`).join('')}
       </div>
       <p style="font-size:11px;color:#888;margin-top:6px">Enter Cycle &amp; Lead time from Jira Control Chart, then click Save to Dashboard to update charts.</p>
-      <button class="btn" style="margin-top:8px" onclick="saveFromSprintTab()">Save to Dashboard</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button class="btn${p.closed===false?' btn-primary':''}" onclick="saveFromSprintTab(false)">Save (sprint in progress)</button>
+        <button class="btn${p.closed===true?' btn-primary':''}" onclick="saveFromSprintTab(true)">Save &amp; publish (sprint complete)</button>
+      </div>
+      <p class="hint" style="margin-top:6px">${p.closed===true?'This sprint is closed &mdash; <b>Save &amp; publish</b> adds it to the charts and the published data.':p.closed===false?'This is an active sprint &mdash; <b>Save</b> keeps it in your table (for the weekly email) but out of the charts and the published data until it closes.':'<b>Save</b> keeps a mid-sprint row in your table but out of the charts and published data; <b>Save &amp; publish</b> is for a finished sprint.'}</p>
     </div>
     <div id="sv1" style="display:none">
       <div id="goals-editor"></div>
@@ -1054,7 +1079,7 @@ function renderSprint(p){
   renderGoalsEditor();
 }
 
-function saveFromSprintTab(){
+function saveFromSprintTab(complete){
   if(!S_PARSED||!S_PARSED.sprint_number)return;
   const f=id=>parseFloat(document.getElementById(id)?.value)||0;
   const n=id=>parseInt(document.getElementById(id)?.value)||0;
@@ -1066,13 +1091,19 @@ function saveFromSprintTab(){
     cycle:f('m10'),lead:f('m11'),
     defects:n('m8'),value:n('m9')
   };
+  if(complete===false)entry.status='inprogress';   // saved for you, but not charted or published until marked complete
   let data=loadSprints();
   const idx=data.findIndex(d=>d.sprint===entry.sprint);
   if(idx>=0) data[idx]=entry; else{data.push(entry);data.sort((a,b)=>a.sprint-b.sprint);}
   saveSprints(data);
   renderDashboard();
   updateDashGoals();
-  alert('Sprint '+entry.sprint+' saved to dashboard!');
+  if(complete===false){
+    alert("Sprint "+entry.sprint+" saved as IN PROGRESS.\n\nIt's in your table (and still there for the weekly email) but left out of the charts and the published data until you save it as complete.");
+  } else {
+    alert("Sprint "+entry.sprint+" saved and marked complete.");
+    publishPanel();const o=document.getElementById('export-output');if(o&&o.scrollIntoView)o.scrollIntoView({behavior:'smooth'});
+  }
 }
 
 function stab(n,btn){[0,1,2].forEach(i=>{const v=document.getElementById('sv'+i);if(v)v.style.display=i===n?'block':'none';});document.querySelectorAll('.stab-row .tab').forEach(b=>b.className='tab');btn.className='tab on';}
@@ -1945,7 +1976,7 @@ const CM_SUMMARY={
   mlt:d=>'<b>Sprint '+d.sprint+'</b> — median lead time <b>'+d.lead+' days</b> (goal 30 days)'
 };
 function sprintDetail(key){
-  const data=loadSprints().map(derived);
+  const data=chartSprints().map(derived);
   const heads=['Sprint','Release','Goals achieved','SP done / committed','Cycle (days)','Lead (days)','Fixes &amp; impr. (pts)','Value (pts)','Fix rate'];
   const rows=data.map((d,i)=>({ds:0,i,cells:['Sprint '+d.sprint,finEsc(d.release),d.goalsmet+' / '+d.goals+' ('+d.pctAchieved+'%)',d.done+' / '+d.committed+' ('+d.pctSP+'%)',d.cycle,d.lead,d.defects,d.value,d.defRate+'%']})).reverse();
   return {
@@ -2181,7 +2212,7 @@ function currentPctForDashboard(){
 function sprintRow(d){return {sprint:d.sprint,release:d.release,goals:d.goals,goalsmet:d.goalsmet,committed:d.committed,done:d.done,cycle:d.cycle,lead:d.lead,defects:d.defects,value:d.value};}
 // only delivery numbers are ever published — never financial data
 function buildPublishData(includeGoals){
-  const out={version:1,published:new Date().toISOString(),sprints:loadSprints().map(sprintRow)};
+  const out={version:1,published:new Date().toISOString(),sprints:completedSprints().map(sprintRow)};
   const pct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
   if(!isNaN(pct))out.pctComplete=pct;
   if(includeGoals&&S_PARSED&&S_PARSED.goals&&S_PARSED.goals.length)out.currentSprint={name:S_PARSED.sprint_name||('Sprint '+S_PARSED.sprint_number),goals:S_PARSED.goals.slice()};
@@ -2193,7 +2224,7 @@ function pubSig(sprints,pct){
 }
 function hasUnpublishedChanges(){
   if(!PUBLISHED)return true;
-  return pubSig(loadSprints(),localStorage.getItem(LS_EPIC_PCT))!==pubSig(PUBLISHED.sprints,PUBLISHED.pctComplete);
+  return pubSig(completedSprints(),localStorage.getItem(LS_EPIC_PCT))!==pubSig(PUBLISHED.sprints,PUBLISHED.pctComplete);
 }
 function fmtDate(iso){try{return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}catch(e){return '';}}
 function updatePubStatus(){
@@ -2203,17 +2234,24 @@ function updatePubStatus(){
     if(!PUBLISHED)el.innerHTML='<span style="color:#b26a00">Not published yet &mdash; others see the built-in snapshot. Manage &rarr; Sprint report &rarr; Publish for everyone.</span>'+re;
     else if(hasUnpublishedChanges())el.innerHTML='<span style="color:#b26a00">&#9679; Unpublished changes</span> &middot; others see the version from '+fmtDate(PUBLISHED.published)+re;
     else el.innerHTML='<span style="color:#1e6e3a">&#10003; Up to date for everyone</span> &middot; published '+fmtDate(PUBLISHED.published)+re;
+    const held=loadSprints().filter(isInProgress);
+    if(held.length)el.innerHTML+=' &middot; <span style="color:#7a5c00">'+held.map(d=>'Sprint '+d.sprint).join(', ')+' in progress (held back)</span>';
+    const live=held.filter(d=>isPublishedNow(d.sprint));
+    if(live.length)el.innerHTML+=' &middot; <span style="color:#b00020">&#9888; '+live.map(d=>'Sprint '+d.sprint).join(', ')+' still visible to others until you publish</span>';
   } else {
     el.textContent=PUBLISHED?('Data as of '+fmtDate(PUBLISHED.published)):'';
   }
 }
 function publishPanel(){
   const out=document.getElementById('export-output');if(!out)return;
-  const sp=loadSprints(),pct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
+  const sp=completedSprints(),held=loadSprints().filter(isInProgress),stillLive=held.filter(d=>isPublishedNow(d.sprint)),pct=parseFloat(localStorage.getItem(LS_EPIC_PCT));
+  if(!sp.length){out.innerHTML='<p style="font-size:13px">There are no completed sprints to publish yet.</p>';return;}
   const gl=(S_PARSED&&S_PARSED.goals)?S_PARSED.goals.length:0;
   out.innerHTML='<div style="background:#f0f4ff;border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.55">'+
     '<p style="font-weight:600;margin-bottom:4px">Publish for everyone</p>'+
+    (stillLive.length?'<p style="background:#fff4d6;color:#7a5c00;border-radius:6px;padding:6px 10px;margin:4px 0 8px">&#9888; <b>'+stillLive.map(d=>'Sprint '+d.sprint).join(', ')+'</b> '+(stillLive.length>1?'are':'is')+' still visible to everyone until you upload the file below to replace the published one.</p>':'')+
     '<p>Creates <code>hub-data.json</code> with <b>'+sp.length+' sprints</b> (Sprint '+sp[0].sprint+'&ndash;'+sp[sp.length-1].sprint+')'+(isNaN(pct)?'':', project % complete <b>'+pct+'%</b>')+'. Only delivery numbers &mdash; never financial data.</p>'+
+    (held.length?'<p style="color:#7a5c00;margin-top:4px">&#128337; Held back (in progress): <b>'+held.map(d=>'Sprint '+d.sprint).join(', ')+'</b> &mdash; not included until you mark it complete.</p>':'')+
     (gl?'<label style="display:flex;gap:8px;align-items:center;margin:8px 0;cursor:pointer"><input type="checkbox" id="pub-goals" checked> Show this sprint\'s '+gl+' goals on the dashboard</label>':'')+
     '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><button class="btn" onclick="downloadPublishFile()">&#11015; Download hub-data.json</button><button class="btn" onclick="previewAsViewer()">&#128065; Preview what others see</button></div>'+
     '<div id="pub-msg" style="font-size:12px;color:#1e6e3a;min-height:16px"></div>'+
@@ -2234,6 +2272,33 @@ function downloadPublishFile(){
   }
 }
 // ══ SHARING END
+
+
+// ══ SPRINT STATUS BEGIN — a sprint saved mid-sprint stays in your table but isn't charted or published until it's complete ══
+function isInProgress(d){return !!d&&d.status==='inprogress';}
+// is this sprint in the file everyone else is currently looking at?
+function isPublishedNow(n){return !!(PUBLISHED&&PUBLISHED.sprints&&PUBLISHED.sprints.some(x=>x.sprint===n));}
+function completedSprints(){return loadSprints().filter(d=>!isInProgress(d));}
+// what the charts, cards and pop-ups use: completed sprints (or everything, if nothing is complete yet, so the page never goes blank)
+function chartSprints(){const c=completedSprints();return c.length?c:loadSprints();}
+function setSprintStatus(n,mode){
+  const data=loadSprints();const i=data.findIndex(d=>d.sprint===n);if(i<0)return false;
+  if(mode==='inprogress')data[i].status='inprogress';else delete data[i].status;
+  saveSprints(data);renderDashboard();return true;
+}
+function setSprintStatusUI(n,mode){
+  const wasLive=isPublishedNow(n);
+  if(!setSprintStatus(n,mode))return;
+  const out=document.getElementById('export-output');
+  if(mode==='inprogress'&&!wasLive){
+    // it was never in the published file, so nothing changes for anyone else
+    if(out)out.innerHTML='<div class="fin-note info">Sprint '+n+' is now in progress &mdash; it stays in your table but is left out of the charts and the published data.</div>';
+  } else {
+    // marking complete, or un-publishing something others can currently see: the published file has to be replaced
+    publishPanel();if(out&&out.scrollIntoView)out.scrollIntoView({behavior:'smooth'});
+  }
+}
+// ══ SPRINT STATUS END
 
 // ── UTILS ────────────────────────────────────────────────────────────────────
 function cp(id){const el=document.getElementById(id);if(!el)return;navigator.clipboard.writeText(el.textContent||el.innerText).then(()=>{});}
